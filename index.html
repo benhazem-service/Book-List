@@ -31,7 +31,7 @@
     .table-quantity-input { border: 2px solid #cbd5e0; border-radius: 6px; padding: 6px 10px; font-size: 1em; text-align: center; width: 80px; font-weight: 600; }
     .table-quantity-input:focus { border-color: #667eea; outline: none; background: #f7fafc; }
     .book-count { background: #fff; color: #667eea; border-radius: 50%; width: 26px; height: 26px; text-align: center; line-height: 26px; font-size: 1em; font-weight: 700; border: 2px solid #667eea; box-shadow: 0 2px 8px #e2e8f0; margin-left: 8px; }
-    .add-book-btn { background: linear-gradient(135deg, #63b3ed 0%, #667eea 100%); color: #fff; border: none; border-radius: 10px; padding: 10px 24px; cursor: pointer; font-size: 1.1em; font-weight: 700; margin: 10px 0; box-shadow: 0 2px 8px #cbd5e0; transition: 0.2s; }
+    .add-book-btn { background: linear-gradient(135deg, #63b3ed 0%, #667eea 100%); color: #fff; border: none; border-radius: 10px; padding: 10px 24px; cursor: pointer; font-size: 1.1em; font-weight: 700; margin: 10px 0; box-shadow: 0 2px 8px #cbd5e0; transition: 0.2s; -webkit-app-region: no-drag; pointer-events: auto; }
     .add-book-btn:hover { background: linear-gradient(135deg, #4299e1 0%, #5a67d8 100%); }
     .search-input { padding: 10px 18px; border-radius: 10px; border: 2px solid #cbd5e0; margin-bottom: 10px; width: 85%; font-size: 1.05em; }
     .search-input:focus { border-color: #667eea; }
@@ -47,7 +47,7 @@
     .settings-modal-content input { width: 80%; margin: 5px 0; padding: 9px; border-radius: 10px; border: 2px solid #cbd5e0; font-size: 1.05em; }
     .settings-modal-content .move-up, .settings-modal-content .move-down { background: linear-gradient(135deg, #63b3ed 0%, #667eea 100%); color: #fff; border: none; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 1em; font-weight: 700; margin: 0 2px; }
     .settings-modal-content .delete-level { background: linear-gradient(135deg, #fc8181 0%, #f56565 100%); color: #fff; border: none; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 1em; font-weight: 700; margin: 0 2px; }
-    .settings-modal-content .add-level-btn { background: linear-gradient(135deg, #68d391 0%, #38b2ac 100%); color: #fff; border: none; border-radius: 12px; padding: 12px 32px; cursor: pointer; font-size: 1.1em; font-weight: 700; margin: 10px 0 30px 0; box-shadow: 0 2px 8px #cbd5e0; }
+    .settings-modal-content .add-level-btn { background: linear-gradient(135deg, #68d391 0%, #38b2ac 100%); color: #fff; border: none; border-radius: 12px; padding: 12px 32px; cursor: pointer; font-size: 1.1em; font-weight: 700; margin: 10px 0 30px 0; box-shadow: 0 2px 8px #cbd5e0; -webkit-app-region: no-drag; pointer-events: auto; }
     .settings-modal-content .add-level-btn:hover { background: linear-gradient(135deg, #48bb78 0%, #319795 100%); }
     .settings-actions { border-top: 1px solid #e2e8f0; margin-top: 20px; padding-top: 20px; text-align: center; }
     .settings-actions h4 { color: #4a5568; margin-bottom: 15px; }
@@ -56,12 +56,69 @@
     .settings-action-btn.export:hover { background: #ebf8ff; color: #3182ce; border-color: #63b3ed; }
     .settings-action-btn.import { background: #fff; color: #48bb78; border: 2px solid #9ae6b4; }
     .settings-action-btn.import:hover { background: #f0fff4; color: #38a169; border-color: #68d391; }
+    /* إضافة CSS عام لجميع الأزرار لضمان عملها في Electron */
+    button {
+      -webkit-app-region: no-drag;
+      pointer-events: auto;
+    }
+    
     @media (max-width: 700px) {
       .levels-list { gap: 10px; }
       .level-btn { padding: 12px 12px; font-size: 1em; }
       .modal-content { width: 95%; max-width: 95vw; padding: 20px; margin-top: 40px; }
-      .chosen-books-table th, .chosen-books-table td { padding: 7px 4px; font-size: 0.95em; }
-    }
+      
+      /* تحسين عرض عناصر التحكم في الكتب للهواتف */
+      .book-btn {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px;
+      }
+      
+      .book-title {
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      
+      .book-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+      }
+      
+      .quantity-input {
+        width: 50px !important;
+        font-size: 14px;
+        padding: 6px 4px;
+      }
+      
+      .add-quantity-btn {
+        font-size: 12px;
+        padding: 6px 8px;
+        white-space: nowrap;
+      }
+      
+      .minus-btn, .plus-btn {
+        padding: 6px 8px;
+        font-size: 14px;
+        min-width: 32px;
+      }
+      
+      .book-count {
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        font-size: 12px;
+      }
+      
+      .remove-book-btn {
+        font-size: 11px;
+        padding: 4px 6px;
+        white-space: nowrap;
+      }
+    }  
+    .chosen-books-table th, .chosen-books-table td { padding: 7px 4px; font-size: 0.95em; }
     .section-header {
       display: flex;
       justify-content: center;
@@ -3073,7 +3130,7 @@
       if (!currentUser || !userChosenBooksDocRef) return;
 
       // Listen to user's chosen books
-      userChosenBooksDocRef.onSnapshot(doc => {
+      const unsubscribe = userChosenBooksDocRef.onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
           if (data.chosenBooks) {
@@ -3109,6 +3166,45 @@
     }
 
     let userListener = null; // To hold the listener unsubscribe function
+
+    // Function to clean up all listeners before logout
+    function cleanupAllListeners() {
+      try {
+        // Clean up user listener
+        if (userListener) {
+          userListener();
+          userListener = null;
+        }
+        
+        // Clean up notifications listener
+        if (notificationsListener) {
+          notificationsListener();
+          notificationsListener = null;
+        }
+        
+        // Clean up admin messages listener
+        if (adminMessagesListener) {
+          adminMessagesListener();
+          adminMessagesListener = null;
+        }
+        
+        // Clean up messages listener
+        if (messagesListener) {
+          messagesListener();
+          messagesListener = null;
+        }
+        
+        // Clean up exchange listener
+        if (window.currentExchangeListener) {
+          window.currentExchangeListener();
+          window.currentExchangeListener = null;
+        }
+        
+        console.log('All listeners cleaned up successfully');
+      } catch (error) {
+        console.warn('Error during listener cleanup:', error);
+      }
+    }
 
     auth.onAuthStateChanged(user => {
       // If a listener from a previous user is active, unsubscribe from it
@@ -3835,6 +3931,12 @@
       
       // Add delay and retry mechanism
       setTimeout(() => {
+        // Double check currentUser is still available after timeout
+        if (!currentUser) {
+          console.log('❌ setupNotificationsListener: No current user after timeout');
+          return;
+        }
+        
         try {
           notificationsListener = notificationsCollection
             .where('userId', '==', currentUser.uid)
@@ -6895,6 +6997,23 @@
             importJSON();
           } else {
             showTemporaryAlert('هذه الخاصية متاحة فقط للمدير', 'error');
+          }
+        };
+      }
+
+      // Logout button
+      const sidebarLogoutBtn = document.getElementById('sidebar-logoutBtn');
+      if (sidebarLogoutBtn) {
+        sidebarLogoutBtn.onclick = async function() {
+          try {
+            // Clean up all listeners before signing out
+            cleanupAllListeners();
+            
+            await auth.signOut();
+            showTemporaryAlert('تم تسجيل الخروج بنجاح', 'success');
+          } catch (error) {
+            console.error('Logout error:', error);
+            showTemporaryAlert('خطأ في تسجيل الخروج: ' + error.message, 'error');
           }
         };
       }
