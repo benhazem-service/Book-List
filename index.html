@@ -2734,7 +2734,7 @@
        // التحقق من عدم وجود مستوى بنفس الاسم
        if (levels.some((level, i) => i !== idx && level.name === newName)) {
          showTemporaryAlert("يوجد مستوى دراسي بهذا الاسم بالفعل!", "error");
-         renderSettingsModal(); // إعادة تحميل الواجهة بالاسم القديم
+         renderLevelsSettingsModal(); // إعادة تحميل الواجهة بالاسم القديم
          return;
        }
 
@@ -2751,7 +2751,7 @@
          
          // تحديث الواجهة
          renderLevels();
-         renderSettingsModal();
+         renderLevelsSettingsModal();
          renderChosenBooksTables();
          showTemporaryAlert("تم تغيير اسم المستوى بنجاح وسيظهر لجميع المستخدمين", "success");
          
@@ -2772,7 +2772,7 @@
            chosenBooks[oldName] = chosenBooks[newName];
            delete chosenBooks[newName];
          }
-         renderSettingsModal();
+         renderLevelsSettingsModal();
        }
      };
          window.moveLevelUp = async function(idx) {
@@ -2796,7 +2796,7 @@
          
          // تحديث الواجهة
          renderLevels();
-         renderSettingsModal();
+         renderLevelsSettingsModal();
          renderChosenBooksTables();
          showTemporaryAlert("تم تحريك المستوى للأعلى وسيظهر التغيير لجميع المستخدمين", "success");
          
@@ -2808,7 +2808,7 @@
          
          // استعادة الترتيب القديم
          [levels[idx-1], levels[idx]] = [levels[idx], levels[idx-1]];
-         renderSettingsModal();
+         renderLevelsSettingsModal();
        }
      };
          window.moveLevelDown = async function(idx) {
@@ -2832,7 +2832,7 @@
          
          // تحديث الواجهة
          renderLevels();
-         renderSettingsModal();
+         renderLevelsSettingsModal();
          renderChosenBooksTables();
          showTemporaryAlert("تم تحريك المستوى للأسفل وسيظهر التغيير لجميع المستخدمين", "success");
          
@@ -2844,7 +2844,7 @@
          
          // استعادة الترتيب القديم
          [levels[idx+1], levels[idx]] = [levels[idx], levels[idx+1]];
-         renderSettingsModal();
+         renderLevelsSettingsModal();
        }
      };
     window.deleteLevel = async function(idx) {
@@ -2893,7 +2893,7 @@
           // استعادة البيانات القديمة
           levels = oldLevels;
           chosenBooks = oldChosenBooks;
-          renderSettingsModal();
+          renderLevelsSettingsModal();
         }
       }
     };
@@ -3820,7 +3820,7 @@
        
        const settingsModal = document.getElementById('settingsModal');
        if (settingsModal && settingsModal.style.display === 'flex') {
-         renderSettingsModal();
+         renderLevelsSettingsModal();
        }
        
        // Show edit permission status if user has it
