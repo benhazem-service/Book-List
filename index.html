@@ -616,6 +616,193 @@
     .exchange-form-cancel:hover {
       background: #cbd5e0;
     }
+    /* Search Interface Styles */
+    .exchange-search-section {
+      margin: 20px 0;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .exchange-search-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .search-input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .exchange-search-input {
+      flex: 2;
+      min-width: 200px;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: all 0.3s ease;
+      background: white;
+    }
+    .exchange-search-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .exchange-level-select {
+      flex: 1;
+      min-width: 150px;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1em;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .exchange-level-select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .exchange-search-btn {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      min-width: 100px;
+    }
+    .exchange-search-btn:hover {
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .exchange-clear-btn {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      min-width: 80px;
+    }
+    .exchange-clear-btn:hover {
+      background: linear-gradient(135deg, #c53030 0%, #9c2626 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+    }
+    .exchange-search-results {
+      margin-top: 20px;
+    }
+    .exchange-search-suggestions {
+      margin-top: 15px;
+    }
+    .search-suggestion-title {
+      font-weight: bold;
+      color: #4a5568;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+    }
+    .search-suggestions-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .search-suggestion-item {
+      background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+      border: none;
+    }
+    .search-suggestion-item:hover {
+      background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(237, 137, 54, 0.3);
+    }
+    /* User Search Suggestions Styles */
+    .user-search-suggestions {
+      margin-top: 10px;
+    }
+    .user-search-suggestion-title {
+      font-weight: bold;
+      color: #4a5568;
+      margin-bottom: 8px;
+      font-size: 0.9em;
+    }
+    .user-search-suggestions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .user-search-suggestion-item {
+      background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+      border: none;
+      text-align: right;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .user-search-suggestion-item:hover {
+      background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(66, 153, 225, 0.3);
+    }
+    .user-suggestion-name {
+      font-weight: 600;
+    }
+    .user-suggestion-email {
+      font-size: 0.8em;
+      opacity: 0.9;
+    }
+    .search-result-item {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      transition: all 0.3s ease;
+    }
+    .search-result-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+    .search-result-book {
+      font-weight: bold;
+      color: #2d3748;
+      font-size: 1.1em;
+      margin-bottom: 5px;
+    }
+    .search-result-level {
+      color: #667eea;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+    }
+    .search-result-match {
+      background: #fef5e7;
+      color: #744210;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      display: inline-block;
+    }
     /* Notifications Styles */
     .notifications-container {
       position: relative;
@@ -1130,8 +1317,8 @@
       <div class="exchange-header">
         <h2>تبادل الكتب</h2>
         <div class="exchange-buttons">
-          <button class="exchange-btn offer" onclick="showExchangeForm('offer')">📚 عرض كتاب</button>
-          <button class="exchange-btn request" onclick="showExchangeForm('request')">🔍 طلب كتاب</button>
+          <button class="exchange-btn offer" onclick="showExchangeForm('offer')">عرض كتاب للبيع 📚</button>
+          <button class="exchange-btn request" onclick="showExchangeForm('request')">طلب كتاب للشراء 🔍</button>
         </div>
       </div>
       
@@ -1139,6 +1326,22 @@
         <div class="exchange-tab" onclick="switchExchangeTab('offers')">كتب معروضة للبيع <span id="offersCount" class="exchange-count-badge">0</span></div>
         <div class="exchange-tab" onclick="switchExchangeTab('requests')">كتب مطلوبة للشراء <span id="requestsCount" class="exchange-count-badge">0</span></div>
         <div class="exchange-tab active" onclick="switchExchangeTab('my')">إعلاناتي</div>
+      </div>
+      
+      <!-- Search Interface -->
+      <div id="exchangeSearchSection" class="exchange-search-section" style="display: none;">
+        <div class="exchange-search-container">
+          <div class="search-input-group">
+            <input type="text" id="exchangeSearchInput" placeholder="ابحث عن كتاب..." class="exchange-search-input">
+            <select id="exchangeLevelSelect" class="exchange-level-select">
+              <option value="">جميع المستويات</option>
+            </select>
+            <button onclick="performExchangeSearch()" class="exchange-search-btn">🔍 بحث</button>
+            <button onclick="clearExchangeSearch()" class="exchange-clear-btn">🗑️ مسح</button>
+          </div>
+          <div id="exchangeSearchResults" class="exchange-search-results"></div>
+          <div id="exchangeSearchSuggestions" class="exchange-search-suggestions"></div>
+        </div>
       </div>
       
       <div id="exchangeLevelsFilter" class="exchange-levels-filter" style="display: none; margin: 20px 0;">
@@ -1373,6 +1576,10 @@
         </div>
         <div class="exchange-form-group" id="specificUsersGroup" style="display: none;">
           <label class="exchange-form-label">اختيار المستخدمين</label>
+          <div class="user-search-container" style="margin-bottom: 15px;">
+            <input type="text" id="userSearchInput" placeholder="ابحث عن مستخدم بالاسم..." class="exchange-form-input" style="margin-bottom: 10px;">
+            <div id="userSearchSuggestions" class="user-search-suggestions"></div>
+          </div>
           <div id="usersList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
             <div style="text-align: center; color: #718096;">جاري تحميل المستخدمين...</div>
           </div>
@@ -1646,18 +1853,8 @@
          books = books.filter(b => b.toLowerCase().includes(searchTerm.toLowerCase()));
        }
        
-       // إضافة نظام العرض المحدود
-       const maxVisible = 5;
-       let visibleBooks = books;
-       let showLoadMore = false;
-       
-       if (!window.showAllBooks && books.length > maxVisible) {
-         visibleBooks = books.slice(0, maxVisible);
-         showLoadMore = true;
-       }
-       
        booksListDiv.innerHTML = '';
-       visibleBooks.forEach(book => {
+       books.forEach(book => {
          const btn = document.createElement('div');
          btn.className = 'book-btn';
          const count = (chosenBooks[level.name] && chosenBooks[level.name][book]) ? chosenBooks[level.name][book] : 0;
@@ -1783,30 +1980,7 @@
          booksListDiv.appendChild(btn);
        });
        
-       // إضافة زر "عرض المزيد" إذا لزم الأمر
-       if (showLoadMore) {
-         const loadMoreBtn = document.createElement('button');
-         loadMoreBtn.className = 'add-book-btn';
-         loadMoreBtn.textContent = `عرض المزيد (${books.length - maxVisible} كتاب إضافي)`;
-         loadMoreBtn.style.marginTop = '15px';
-         loadMoreBtn.onclick = () => {
-           window.showAllBooks = true;
-           renderBooksList();
-         };
-         booksListDiv.appendChild(loadMoreBtn);
-       } else if (window.showAllBooks && books.length > maxVisible) {
-         // إضافة زر "عرض أقل" إذا كان يعرض جميع الكتب
-         const showLessBtn = document.createElement('button');
-         showLessBtn.className = 'add-book-btn';
-         showLessBtn.textContent = 'عرض أقل';
-         showLessBtn.style.marginTop = '15px';
-         showLessBtn.style.background = 'linear-gradient(135deg, #a0aec0 0%, #718096 100%)';
-         showLessBtn.onclick = () => {
-           window.showAllBooks = false;
-           renderBooksList();
-         };
-         booksListDiv.appendChild(showLessBtn);
-       }
+       // تم إلغاء خيار عرض المزيد وعرض أقل - الآن تظهر جميع الكتب مباشرة
     }
 
     function searchBooks() {
@@ -1889,7 +2063,10 @@
           return;
         }
 
-        let html = `<h3 style="margin-top:30px;color:#63b3ed;">${levelName}</h3>
+        let html = `<div style="text-align:center; margin-top:30px; margin-bottom:20px;">
+          <h3 style="color:#4a5568; margin:0; padding:10px 20px; background:linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%); color:#4a5568; border-radius:25px; display:inline-block; box-shadow:0 4px 15px rgba(160, 174, 192, 0.2); font-weight:600; letter-spacing:1px;">${levelName}</h3>
+          <div style="width:80px; height:3px; background:linear-gradient(90deg, #cbd5e0, #a0aec0); margin:8px auto; border-radius:2px;"></div>
+        </div>
         <table class="chosen-books-table">
           <tr>
             <th>الكتاب</th>
@@ -4423,6 +4600,19 @@
       const usersList = document.getElementById('usersList');
       const selectedUsersCount = document.getElementById('selectedUsersCount');
       
+      // إضافة event listener لحقل البحث عن المستخدمين
+      const userSearchInput = document.getElementById('userSearchInput');
+      if (userSearchInput) {
+        userSearchInput.addEventListener('input', function() {
+          const searchTerm = this.value.trim();
+          if (searchTerm.length >= 2) {
+            performUserSearch(searchTerm);
+          } else {
+            clearUserSearchSuggestions();
+          }
+        });
+      }
+      
       try {
         usersList.innerHTML = '<div style="text-align: center; color: #718096;">جاري تحميل المستخدمين...</div>';
         
@@ -4476,6 +4666,125 @@
       } catch (error) {
         console.error('Error loading users for messaging:', error);
         usersList.innerHTML = '<div style="text-align: center; color: #e53e3e;">خطأ في تحميل المستخدمين</div>';
+      }
+    }
+    
+    // البحث الذكي عن المستخدمين
+    async function performUserSearch(searchTerm) {
+      const suggestionsDiv = document.getElementById('userSearchSuggestions');
+      if (!suggestionsDiv) return;
+      
+      try {
+        const normalizedSearch = normalizeArabicText(searchTerm.toLowerCase());
+        
+        // البحث في المستخدمين المفعلين
+        const usersSnapshot = await usersCollection
+          .where('isActive', '==', true)
+          .get();
+        
+        const suggestions = [];
+        
+        usersSnapshot.forEach(doc => {
+          const userData = doc.data();
+          const userId = doc.id;
+          
+          // تجاهل المدراء
+          if (userData.isAdmin) return;
+          
+          const userName = userData.name || 'بدون اسم';
+          const userEmail = userData.email || '';
+          
+          // تطبيق نفس خوارزمية البحث الذكي المستخدمة في البحث عن الكتب
+          const normalizedName = normalizeArabicText(userName.toLowerCase());
+          const normalizedEmail = normalizeArabicText(userEmail.toLowerCase());
+          
+          // البحث في الاسم والبريد الإلكتروني
+          const nameMatch = normalizedName.includes(normalizedSearch) || 
+                           calculateSimilarity(normalizedSearch, normalizedName) > 0.6;
+          const emailMatch = normalizedEmail.includes(normalizedSearch);
+          
+          if (nameMatch || emailMatch) {
+            const nameSimilarity = calculateSimilarity(normalizedSearch, normalizedName);
+            const emailSimilarity = calculateSimilarity(normalizedSearch, normalizedEmail);
+            const maxSimilarity = Math.max(nameSimilarity, emailSimilarity);
+            
+            suggestions.push({
+              id: userId,
+              name: userName,
+              email: userEmail,
+              phone: userData.phone || '',
+              similarity: maxSimilarity,
+              matchType: nameMatch ? 'name' : 'email'
+            });
+          }
+        });
+        
+        // ترتيب النتائج حسب التشابه
+        suggestions.sort((a, b) => b.similarity - a.similarity);
+        
+        // عرض النتائج
+        if (suggestions.length > 0) {
+          let html = '<div class="user-search-suggestion-title">اقتراحات المستخدمين:</div>';
+          html += '<div class="user-search-suggestions-list">';
+          
+          suggestions.slice(0, 5).forEach(user => {
+            html += `
+              <button class="user-search-suggestion-item" onclick="selectUser('${user.id}', '${user.name}', '${user.email}')">
+                <div>
+                  <div class="user-suggestion-name">${user.name}</div>
+                  <div class="user-suggestion-email">${user.email}</div>
+                </div>
+                <div style="font-size: 0.8em; opacity: 0.8;">اختر</div>
+              </button>
+            `;
+          });
+          
+          html += '</div>';
+          suggestionsDiv.innerHTML = html;
+        } else {
+          suggestionsDiv.innerHTML = '<div class="user-search-suggestion-title" style="color: #718096;">لا توجد نتائج مطابقة</div>';
+        }
+        
+      } catch (error) {
+        console.error('Error searching users:', error);
+        suggestionsDiv.innerHTML = '<div class="user-search-suggestion-title" style="color: #e53e3e;">خطأ في البحث</div>';
+      }
+    }
+    
+    // مسح اقتراحات البحث عن المستخدمين
+    function clearUserSearchSuggestions() {
+      const suggestionsDiv = document.getElementById('userSearchSuggestions');
+      if (suggestionsDiv) {
+        suggestionsDiv.innerHTML = '';
+      }
+    }
+    
+    // اختيار مستخدم من نتائج البحث
+    function selectUser(userId, userName, userEmail) {
+      // البحث عن checkbox المستخدم وتحديده
+      const userCheckbox = document.querySelector(`#usersList input[value="${userId}"]`);
+      if (userCheckbox) {
+        userCheckbox.checked = true;
+        updateSelectedUsersCount();
+        
+        // مسح حقل البحث والاقتراحات
+        const searchInput = document.getElementById('userSearchInput');
+        if (searchInput) {
+          searchInput.value = '';
+        }
+        clearUserSearchSuggestions();
+        
+        // التمرير إلى المستخدم المحدد
+        const userLabel = userCheckbox.closest('label');
+        if (userLabel) {
+          userLabel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          userLabel.style.backgroundColor = '#e6fffa';
+          setTimeout(() => {
+            userLabel.style.backgroundColor = 'transparent';
+          }, 2000);
+        }
+        
+        showTemporaryAlert(`تم اختيار المستخدم: ${userName}`, 'success', 2000);
       }
     }
     
@@ -5941,6 +6250,408 @@
       }
     }
     
+    // Initialize exchange search functionality
+    function initializeExchangeSearch() {
+      // Populate level select dropdown
+      const levelSelect = document.getElementById('exchangeLevelSelect');
+      if (levelSelect) {
+        levelSelect.innerHTML = '<option value="">جميع المستويات</option>';
+        levels.forEach(level => {
+          const option = document.createElement('option');
+          option.value = level.name;
+          option.textContent = level.name;
+          levelSelect.appendChild(option);
+        });
+      }
+      
+      // Show search section for offers and requests tabs
+      const searchSection = document.getElementById('exchangeSearchSection');
+      if (currentExchangeType === 'offers' || currentExchangeType === 'requests') {
+        searchSection.style.display = 'block';
+      } else {
+        searchSection.style.display = 'none';
+      }
+      
+      // Add enter key listener to search input
+      const searchInput = document.getElementById('exchangeSearchInput');
+      if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            performExchangeSearch();
+          }
+        });
+        
+        // Add real-time search suggestions
+        searchInput.addEventListener('input', function() {
+          if (this.value.length >= 2) {
+            showSearchSuggestions(this.value);
+          } else {
+            clearSearchSuggestions();
+          }
+        });
+      }
+    }
+    
+    // مسح البحث والعودة للحالة الأصلية
+    function clearExchangeSearch() {
+      // مسح حقل البحث وقائمة المستويات
+      const searchInput = document.getElementById('exchangeSearchInput');
+      const levelSelect = document.getElementById('exchangeLevelSelect');
+      const resultsDiv = document.getElementById('exchangeSearchResults');
+      const suggestionsDiv = document.getElementById('exchangeSearchSuggestions');
+      
+      if (searchInput) searchInput.value = '';
+      if (levelSelect) levelSelect.value = '';
+      if (resultsDiv) resultsDiv.innerHTML = '';
+      if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+      
+      // إعادة تحميل قوائم التبادل الأصلية
+      loadExchangeListings(currentExchangeType);
+      
+      // عرض رسالة نجاح
+      showTemporaryAlert('تم مسح البحث بنجاح', 'success', 2000);
+    }
+    
+    // Perform intelligent book search in user exchanges
+    async function performExchangeSearch() {
+      const searchInput = document.getElementById('exchangeSearchInput');
+      const levelSelect = document.getElementById('exchangeLevelSelect');
+      const resultsDiv = document.getElementById('exchangeSearchResults');
+      const suggestionsDiv = document.getElementById('exchangeSearchSuggestions');
+      
+      if (!searchInput || !levelSelect || !resultsDiv) return;
+      
+      const searchTerm = searchInput.value.trim();
+      const selectedLevel = levelSelect.value;
+      
+      if (!searchTerm) {
+        resultsDiv.innerHTML = '<div style="color: #e53e3e; text-align: center; padding: 20px;">يرجى إدخال اسم الكتاب للبحث</div>';
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">جاري البحث...</div>';
+      suggestionsDiv.innerHTML = '';
+      
+      try {
+        // Search in actual user exchanges
+        const searchResults = await searchInUserExchanges(searchTerm, selectedLevel);
+        
+        if (searchResults.exactMatches.length > 0 || searchResults.fuzzyMatches.length > 0) {
+          displayExchangeSearchResults(searchResults, searchTerm);
+        } else {
+          // Show suggestions from available exchanges
+          const suggestions = await generateExchangeSuggestions(searchTerm, selectedLevel);
+          displayNoExchangeResultsWithSuggestions(searchTerm, suggestions);
+        }
+      } catch (error) {
+        console.error('Error searching exchanges:', error);
+        resultsDiv.innerHTML = '<div style="color: #e53e3e; text-align: center; padding: 20px;">حدث خطأ أثناء البحث</div>';
+      }
+    }
+    
+    // Search in actual user exchanges (offers and requests)
+    async function searchInUserExchanges(searchTerm, selectedLevel) {
+      const results = {
+        exactMatches: [],
+        fuzzyMatches: []
+      };
+      
+      const normalizedSearch = normalizeArabicText(searchTerm.toLowerCase());
+      
+      try {
+        // Get current exchange type to determine what to search
+        const searchType = currentExchangeType === 'offers' ? 'offer' : 'request';
+        
+        // Query exchanges from other users
+        let query = exchangeCollection.where('type', '==', searchType);
+        
+        const snapshot = await query.get();
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          
+          // Skip current user's exchanges
+          if (data.userId === currentUser.uid) return;
+          
+          // Filter by level if selected
+          if (selectedLevel && data.bookLevel !== selectedLevel) return;
+          
+          const normalizedBookName = normalizeArabicText(data.bookName.toLowerCase());
+          
+          // Exact match
+          if (normalizedBookName === normalizedSearch || normalizedBookName.includes(normalizedSearch)) {
+            results.exactMatches.push({
+              id: doc.id,
+              book: data.bookName,
+              level: data.bookLevel,
+              count: data.count,
+              userName: data.userName,
+              userPhone: data.userPhone,
+              type: data.type,
+              createdAt: data.createdAt,
+              matchType: 'exact'
+            });
+          }
+          // Fuzzy match
+          else if (calculateSimilarity(normalizedSearch, normalizedBookName) > 0.6) {
+            results.fuzzyMatches.push({
+              id: doc.id,
+              book: data.bookName,
+              level: data.bookLevel,
+              count: data.count,
+              userName: data.userName,
+              userPhone: data.userPhone,
+              type: data.type,
+              createdAt: data.createdAt,
+              matchType: 'fuzzy',
+              similarity: calculateSimilarity(normalizedSearch, normalizedBookName)
+            });
+          }
+        });
+        
+        // Sort fuzzy matches by similarity
+        results.fuzzyMatches.sort((a, b) => b.similarity - a.similarity);
+        
+      } catch (error) {
+        console.error('Error searching in exchanges:', error);
+      }
+      
+      return results;
+    }
+    
+    // Generate intelligent suggestions from available exchanges
+    async function generateExchangeSuggestions(searchTerm, selectedLevel) {
+      const suggestions = [];
+      const normalizedSearch = normalizeArabicText(searchTerm.toLowerCase());
+      
+      try {
+        const searchType = currentExchangeType === 'offers' ? 'offer' : 'request';
+        let query = exchangeCollection.where('type', '==', searchType);
+        
+        const snapshot = await query.get();
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          
+          // Skip current user's exchanges
+          if (data.userId === currentUser.uid) return;
+          
+          // Filter by level if selected
+          if (selectedLevel && data.bookLevel !== selectedLevel) return;
+          
+          const normalizedBookName = normalizeArabicText(data.bookName.toLowerCase());
+          const similarity = calculateSimilarity(normalizedSearch, normalizedBookName);
+          
+          if (similarity > 0.3) {
+            suggestions.push({
+              book: data.bookName,
+              level: data.bookLevel,
+              similarity: similarity,
+              count: data.count,
+              userName: data.userName
+            });
+          }
+        });
+        
+        // Remove duplicates and sort by similarity
+        const uniqueSuggestions = suggestions.reduce((acc, current) => {
+          const existing = acc.find(item => item.book === current.book && item.level === current.level);
+          if (!existing) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        
+        return uniqueSuggestions.sort((a, b) => b.similarity - a.similarity).slice(0, 8);
+        
+      } catch (error) {
+        console.error('Error generating exchange suggestions:', error);
+        return [];
+      }
+    }
+    
+    // Show real-time search suggestions from exchanges
+    async function showSearchSuggestions(searchTerm) {
+      const suggestionsDiv = document.getElementById('exchangeSearchSuggestions');
+      if (!suggestionsDiv) return;
+      
+      try {
+        const suggestions = await generateExchangeSuggestions(searchTerm, '');
+        
+        if (suggestions.length > 0) {
+          let html = '<div class="search-suggestion-title">اقتراحات من الإعلانات المتاحة:</div>';
+          html += '<div class="search-suggestions-list">';
+          
+          suggestions.slice(0, 5).forEach(suggestion => {
+            html += `<button class="search-suggestion-item" onclick="selectSuggestion('${suggestion.book}', '${suggestion.level}')">${suggestion.book}</button>`;
+          });
+          
+          html += '</div>';
+          suggestionsDiv.innerHTML = html;
+        } else {
+          suggestionsDiv.innerHTML = '';
+        }
+      } catch (error) {
+        console.error('Error showing search suggestions:', error);
+        suggestionsDiv.innerHTML = '';
+      }
+    }
+    
+    // Clear search suggestions
+    function clearSearchSuggestions() {
+      const suggestionsDiv = document.getElementById('exchangeSearchSuggestions');
+      if (suggestionsDiv) {
+        suggestionsDiv.innerHTML = '';
+      }
+    }
+    
+    // Select a suggestion
+    function selectSuggestion(bookName, levelName) {
+      const searchInput = document.getElementById('exchangeSearchInput');
+      const levelSelect = document.getElementById('exchangeLevelSelect');
+      
+      if (searchInput) searchInput.value = bookName;
+      if (levelSelect) levelSelect.value = levelName;
+      
+      clearSearchSuggestions();
+      performExchangeSearch();
+    }
+    
+    // Display exchange search results with user information
+    function displayExchangeSearchResults(results, searchTerm) {
+      const resultsDiv = document.getElementById('exchangeSearchResults');
+      let html = '';
+      
+      if (results.exactMatches.length > 0) {
+        html += '<div style="margin-bottom: 20px;">';
+        html += '<h4 style="color: #38a169; margin-bottom: 15px;">✅ نتائج مطابقة تماماً:</h4>';
+        
+        results.exactMatches.forEach(result => {
+          const typeText = result.type === 'offer' ? 'معروض للبيع' : 'مطلوب للشراء';
+          const typeIcon = result.type === 'offer' ? '📚' : '🔍';
+          const createdDate = result.createdAt ? new Date(result.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير محدد';
+          
+          html += `
+            <div class="search-result-item">
+              <div class="search-result-book">${result.book}</div>
+              <div class="search-result-level">📚 ${result.level}</div>
+              <div style="margin: 8px 0; color: #4a5568;">
+                <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
+                <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+              </div>
+              <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
+                <span style="margin-left: 15px;">👤 ${result.userName}</span>
+                <span style="margin-left: 15px;">📞 ${result.userPhone}</span>
+              </div>
+              <div style="margin: 8px 0; color: #718096; font-size: 0.8em;">تاريخ النشر: ${createdDate}</div>
+              <div class="search-result-match">مطابقة تامة</div>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+      
+      if (results.fuzzyMatches.length > 0) {
+        html += '<div>';
+        html += '<h4 style="color: #d69e2e; margin-bottom: 15px;">💡 نتائج مشابهة:</h4>';
+        
+        results.fuzzyMatches.forEach(result => {
+          const matchPercentage = Math.round(result.similarity * 100);
+          const typeText = result.type === 'offer' ? 'معروض للبيع' : 'مطلوب للشراء';
+          const typeIcon = result.type === 'offer' ? '📚' : '🔍';
+          const createdDate = result.createdAt ? new Date(result.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير محدد';
+          
+          html += `
+            <div class="search-result-item">
+              <div class="search-result-book">${result.book}</div>
+              <div class="search-result-level">📚 ${result.level}</div>
+              <div style="margin: 8px 0; color: #4a5568;">
+                <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
+                <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+              </div>
+              <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
+                <span style="margin-left: 15px;">👤 ${result.userName}</span>
+                <span style="margin-left: 15px;">📞 ${result.userPhone}</span>
+              </div>
+              <div style="margin: 8px 0; color: #718096; font-size: 0.8em;">تاريخ النشر: ${createdDate}</div>
+              <div class="search-result-match">تشابه ${matchPercentage}%</div>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+      
+      resultsDiv.innerHTML = html;
+    }
+    
+    // Display no exchange results with suggestions
+    function displayNoExchangeResultsWithSuggestions(searchTerm, suggestions) {
+      const resultsDiv = document.getElementById('exchangeSearchResults');
+      const currentTypeText = currentExchangeType === 'offers' ? 'المعروضة للبيع' : 'المطلوبة للشراء';
+      
+      let html = `
+        <div style="text-align: center; padding: 20px; color: #4a5568;">
+          <div style="font-size: 1.2em; margin-bottom: 15px;">❌ لم يتم العثور على "${searchTerm}" في الكتب ${currentTypeText}</div>
+      `;
+      
+      if (suggestions.length > 0) {
+        html += '<div style="margin-top: 20px;">';
+        html += '<div class="search-suggestion-title">هل تقصد أحد هذه الكتب المتاحة؟</div>';
+        html += '<div class="search-suggestions-list">';
+        
+        suggestions.forEach(suggestion => {
+          html += `<button class="search-suggestion-item" onclick="selectSuggestion('${suggestion.book}', '${suggestion.level}')">${suggestion.book} (${suggestion.level})</button>`;
+        });
+        
+        html += '</div></div>';
+      } else {
+        html += '<div style="margin-top: 15px; color: #718096;">لا توجد كتب مشابهة في الإعلانات الحالية. جرب البحث بكلمات أخرى أو تحقق من المستوى المحدد</div>';
+      }
+      
+      html += '</div>';
+      resultsDiv.innerHTML = html;
+    }
+    
+    // Normalize Arabic text for better matching
+    function normalizeArabicText(text) {
+      return text
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/[ة]/g, 'ه')
+        .replace(/[ى]/g, 'ي')
+        .replace(/[ء]/g, '')
+        .replace(/[ًٌٍَُِّْ]/g, '')  // Remove diacritics
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    
+    // Calculate similarity between two strings using Levenshtein distance
+    function calculateSimilarity(str1, str2) {
+      const len1 = str1.length;
+      const len2 = str2.length;
+      
+      if (len1 === 0) return len2 === 0 ? 1 : 0;
+      if (len2 === 0) return 0;
+      
+      const matrix = Array(len1 + 1).fill().map(() => Array(len2 + 1).fill(0));
+      
+      for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+      for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+      
+      for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+          const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,      // deletion
+            matrix[i][j - 1] + 1,      // insertion
+            matrix[i - 1][j - 1] + cost // substitution
+          );
+        }
+      }
+      
+      const maxLen = Math.max(len1, len2);
+      return (maxLen - matrix[len1][len2]) / maxLen;
+    }
+
     // Switch between exchange tabs
     async function switchExchangeTab(tabType) {
       currentExchangeType = tabType;
@@ -5962,6 +6673,9 @@
       } else {
         levelsFilterDiv.style.display = 'block';
       }
+      
+      // Initialize search functionality
+      initializeExchangeSearch();
       
       // تحديث الإحصائيات أولاً
       await countExchangeStats();
