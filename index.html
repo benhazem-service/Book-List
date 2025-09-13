@@ -6529,7 +6529,10 @@
         results.exactMatches.forEach(result => {
           const typeText = result.type === 'offer' ? 'معروض للبيع' : 'مطلوب للشراء';
           const typeIcon = result.type === 'offer' ? '📚' : '🔍';
-          const createdDate = result.createdAt ? new Date(result.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير محدد';
+          const createdDate = result.createdAt ? (() => {
+            const date = new Date(result.createdAt.seconds * 1000);
+            return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+          })() : 'غير محدد';
           
           html += `
             <div class="search-result-item">
@@ -6559,7 +6562,10 @@
           const matchPercentage = Math.round(result.similarity * 100);
           const typeText = result.type === 'offer' ? 'معروض للبيع' : 'مطلوب للشراء';
           const typeIcon = result.type === 'offer' ? '📚' : '🔍';
-          const createdDate = result.createdAt ? new Date(result.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير محدد';
+          const createdDate = result.createdAt ? (() => {
+            const date = new Date(result.createdAt.seconds * 1000);
+            return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+          })() : 'غير محدد';
           
           html += `
             <div class="search-result-item">
