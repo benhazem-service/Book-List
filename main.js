@@ -128,7 +128,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
        
        content.innerHTML = `
          <span class="close-btn" onclick="closeBooksModal()">&times;</span>
-         <h3 style="color:#667eea;">كتب مستوى: ${level.name}</h3>
+         <h3 style="color:#667eea;">الكتب الخاصة بمستوى: ${level.name}</h3>
          <input class="search-input" id="searchBookInput" placeholder="ابحث عن كتاب..." oninput="searchBooks()" />
          <div class="books-list" id="booksList"></div>
          ${hasEditPermission ? `
@@ -157,17 +157,23 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
        
        booksListDiv.innerHTML = '';
        books.forEach(book => {
-         const btn = document.createElement('div');
-         btn.className = 'book-btn';
-         const count = (chosenBooks[level.name] && chosenBooks[level.name][book]) ? chosenBooks[level.name][book] : 0;
-         if (count > 0) btn.classList.add('selected');
-         const titleSpan = document.createElement('span');
-         titleSpan.className = 'book-title';
-         titleSpan.textContent = book;
-         btn.appendChild(titleSpan);
- 
-         const controlsDiv = document.createElement('div');
-         controlsDiv.className = 'book-controls';
+        const btn = document.createElement('div');
+        btn.className = 'book-btn';
+        const count = (chosenBooks[level.name] && chosenBooks[level.name][book]) ? chosenBooks[level.name][book] : 0;
+        if (count > 0) btn.classList.add('selected');
+        
+        // إنشاء حاوي العنوان
+        const titleContainer = document.createElement('div');
+        titleContainer.className = 'book-title-container';
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'book-title';
+        titleSpan.textContent = book;
+        titleContainer.appendChild(titleSpan);
+        btn.appendChild(titleContainer);
+
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'book-controls';
  
          // زر ناقص
          const minusBtn = document.createElement('button');
