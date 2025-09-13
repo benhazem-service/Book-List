@@ -1685,20 +1685,14 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
+  <!-- تحميل إعدادات Firebase من ملف منفصل -->
+  <script src="config.js"></script>
+  
   <script>
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
-      apiKey: "AIzaSyDI_6b-yqirAf2qRZA3HJTJuBak_Ag15sw",
-    authDomain: "booklist-3ff3f.firebaseapp.com",
-    projectId: "booklist-3ff3f",
-    storageBucket: "booklist-3ff3f.firebasestorage.app",
-    messagingSenderId: "194492431791",
-    appId: "1:194492431791:web:52d858de64c8fc9a21435a",
-    measurementId: "G-LR3G43BXNE"
-    };
+    // استخدام الإعدادات من الملف المنفصل
 
     // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(window.firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
     
