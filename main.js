@@ -31,20 +31,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     let currentUser = null;
     let isAdmin = false;
 
-    let levels = [
-      { name: "التحضيري", books: ["اللغة العربية", "الرياضيات", "التربية الإسلامية"] },
-      { name: "السنة الأولى ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية"] },
-      { name: "السنة الثانية ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية"] },
-      { name: "السنة الثالثة ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "النشاط العلمي"] },
-      { name: "السنة الرابعة ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "النشاط العلمي"] },
-      { name: "السنة الخامسة ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "النشاط العلمي"] },
-      { name: "السنة السادسة ابتدائي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "النشاط العلمي"] },
-      { name: "الأولى إعدادي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "علوم الحياة والأرض"] },
-      { name: "الثانية إعدادي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "علوم الحياة والأرض"] },
-      { name: "الثالثة إعدادي", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "علوم الحياة والأرض"] },
-      { name: "الأولى باكالوريا", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "علوم الحياة والأرض", "الفيزياء والكيمياء"] },
-      { name: "الثانية باكالوريا", books: ["اللغة العربية", "الرياضيات", "الفرنسية", "التربية الإسلامية", "علوم الحياة والأرض", "الفيزياء والكيمياء"] }
-    ];
+    let levels = []; // Initialize empty - will be loaded from Firebase
     let chosenBooks = {}; // {level: {book: count}} - now user-specific
     let currentLevelIndex = null;
     let searchTerm = "";
@@ -1489,11 +1476,11 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
       switch (status) {
         case 'connected':
-          text = '☁️ متصل بالسحابة';
+          text = '☁️ متصل ';
           className = 'connected';
           break;
         case 'disconnected':
-          text = '⚠️ غير متصل (الحفظ محلي)';
+          text = '⚠️ غير متصل';
           className = 'disconnected';
           break;
         case 'connecting':
@@ -1571,13 +1558,55 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
            // Not found error - no alert shown
          } else {
            // Other connection errors - no alert shown
+           console.error("Error connecting to Firebase:", error);
          }
          
          // Fallback to local storage
-         loadFromLocalStorage();
-         renderLevels();
-         renderChosenBooksTables();
-       }
+        loadFromLocalStorage();
+      }
+    }
+
+    async function loadDataFromFirebase() {
+      try {
+        // Load levels data from Firebase
+        const appDataDoc = await appDataDocRef.get();
+        if (appDataDoc.exists) {
+          const data = appDataDoc.data();
+          if (data.levels && data.levels.length > 0) {
+            levels = data.levels;
+            localStorage.setItem('bookAppData_levels', JSON.stringify({ levels }));
+          } else {
+            // If no levels in Firebase, show error message
+            throw new Error('لا توجد بيانات مستويات في قاعدة البيانات');
+          }
+        } else {
+          throw new Error('لا توجد بيانات في قاعدة البيانات');
+        }
+
+        // Load user's chosen books if user is logged in
+        if (currentUser && userChosenBooksDocRef) {
+          const userDoc = await userChosenBooksDocRef.get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            if (userData.chosenBooks) {
+              chosenBooks = userData.chosenBooks;
+              const userKey = `bookAppData_${currentUser.uid}`;
+              localStorage.setItem(userKey, JSON.stringify({ chosenBooks }));
+            }
+          }
+        }
+
+        // Set up real-time listener after initial load
+        setupRealtimeListener();
+        
+        // Render the UI
+        renderLevels();
+        renderChosenBooksTables();
+        
+      } catch (error) {
+        console.error('Error loading data from Firebase:', error);
+        throw error; // Re-throw to be caught by the calling function
+      }
     }
 
     function setupRealtimeListener() {
@@ -1968,12 +1997,21 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           isAdmin = false;
         }
         
-        // Load user's chosen books and set up listener
-        loadFromLocalStorage();
-        setupUserChosenBooksListener();
+        // Load data from Firebase first, then set up listeners
+        try {
+          await loadDataFromFirebase();
+          setupUserChosenBooksListener();
+          updateLoadingStatus('تم التحميل بنجاح!');
+        } catch (error) {
+          console.error('Error loading data from Firebase:', error);
+          updateLoadingStatus('فشل في تحميل البيانات');
+          showTemporaryAlert('فشل في تحميل البيانات من قاعدة البيانات. المرجو إعادة تحميل الصفحة لجلب البيانات.', 'error');
+          // Fallback to local storage
+          loadFromLocalStorage();
+          setupUserChosenBooksListener();
+        }
         
         // Hide loading screen and show main app
-        updateLoadingStatus('تم التحميل بنجاح!');
         setTimeout(() => {
           const loadingScreen = document.getElementById('loading-screen');
           const loginPage = document.getElementById('login-page');
