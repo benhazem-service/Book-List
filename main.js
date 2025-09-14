@@ -3,6 +3,7 @@
 firebase.initializeApp(window.firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+const storage = firebase.storage();
 
 // Set persistence to LOCAL to keep user logged in across browser sessions
 // Make sure this is called before any auth operations
@@ -33,6 +34,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
     let levels = []; // Initialize empty - will be loaded from Firebase
     let chosenBooks = {}; // {level: {book: count}} - now user-specific
+    let currentLevelForAddBook = null; // Store the level index when adding a book
     let currentLevelIndex = null;
     let searchTerm = "";
     let userChosenBooksDocRef = null; // Reference to user's chosen books document
@@ -94,6 +96,435 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
     }
 
+    // دالة معاينة الصورة في نموذج التبادل
+    function previewExchangeBookImage(input) {
+      const preview = document.getElementById('exchangeBookImagePreview');
+      const previewImg = document.getElementById('exchangeBookImagePreviewImg');
+      
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          previewImg.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+    
+    // دالة إزالة صورة الكتاب في نموذج التبادل
+    function removeExchangeBookImage() {
+      document.getElementById('exchangeBookImage').value = '';
+      document.getElementById('exchangeBookImagePreview').style.display = 'none';
+    }
+    
+    // دالة إضافة كتاب جديد إلى المستوى إذا لم يكن موجوداً
+    async function addBookToLevelIfNotExists(bookName, levelName, imageUrl) {
+      try {
+        // البحث عن المستوى
+        const levelIndex = levels.findIndex(level => level.name === levelName);
+        if (levelIndex === -1) return;
+        
+        // التحقق من وجود الكتاب
+        if (!levels[levelIndex].books) {
+          levels[levelIndex].books = [];
+        }
+        
+        if (!levels[levelIndex].books.includes(bookName)) {
+          // إضافة الكتاب إلى المستوى
+          levels[levelIndex].books.push(bookName);
+          levels[levelIndex].books = sortBooks(levels[levelIndex].books);
+          
+          // إضافة صورة الكتاب إذا كانت متوفرة
+          if (imageUrl) {
+            if (!levels[levelIndex].bookImages) {
+              levels[levelIndex].bookImages = {};
+            }
+            levels[levelIndex].bookImages[bookName] = imageUrl;
+          }
+          
+          // حفظ البيانات
+          await saveData();
+          
+          // تحديث العرض إذا كان المستوى مفتوحاً حالياً
+          if (currentLevelIndex === levelIndex) {
+            renderBooksList();
+          }
+        }
+      } catch (error) {
+        console.error('Error adding book to level:', error);
+      }
+    }
+
+    // دالة معاينة الصورة قبل الرفع
+    function previewBookImage(input) {
+      const preview = document.getElementById('imagePreview');
+      const previewImg = document.getElementById('previewImg');
+      
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // التحقق من حجم الصورة (أقل من 1MB)
+        if (file.size > 1024 * 1024) {
+          showTemporaryAlert('حجم الصورة يجب أن يكون أقل من 1 ميجابايت', 'error');
+          input.value = '';
+          preview.style.display = 'none';
+          return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          previewImg.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(file);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // دالة رفع صورة الكتاب إلى Firebase Storage
+    async function uploadBookImage(file, bookName) {
+      if (!file) return null;
+      
+      try {
+        const timestamp = Date.now();
+        // استخدام مسار مبسط للاختبار
+        const fileName = `images/${timestamp}-${bookName.replace(/[^a-zA-Z0-9]/g, '_')}.${file.name.split('.').pop()}`;
+        const storageRef = storage.ref(fileName);
+        
+        const snapshot = await storageRef.put(file);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        
+        return downloadURL;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        showTemporaryAlert('خطأ في رفع الصورة. تأكد من صلاحيات Firebase Storage', 'error');
+        throw error;
+      }
+    }
+
+    // دالة عرض الصورة في النافذة المنبثقة
+    function showImageModal(imageUrl, bookName) {
+      const modal = document.getElementById('imageModal');
+      const img = document.getElementById('imageModalImg');
+      const title = document.getElementById('imageModalTitle');
+      
+      img.src = imageUrl;
+      title.textContent = `صورة الكتاب: ${bookName}`;
+      modal.style.display = 'flex';
+    }
+
+    // دالة عرض نافذة إضافة صورة للكتاب
+    function showAddImageModal(bookName, levelIndex) {
+      const modal = document.createElement('div');
+      modal.className = 'image-modal';
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="image-modal-content">
+          <span class="image-modal-close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+          <h3 class="image-modal-title">إضافة صورة للكتاب: ${bookName}</h3>
+          <form id="addImageForm">
+            <div style="margin-bottom: 15px;">
+              <label for="bookImageFile">اختر صورة الكتاب:</label>
+              <input type="file" id="bookImageFile" accept="image/*" required style="margin-top: 5px; width: 100%;">
+            </div>
+            <div id="imagePreviewContainer" style="display: none; margin-bottom: 15px; text-align: center;">
+              <img id="imagePreview" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+            </div>
+            <div style="text-align: center;">
+              <button type="submit" style="background: #48bb78; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">إضافة الصورة</button>
+              <button type="button" onclick="this.closest('.image-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // معالج معاينة الصورة
+      const fileInput = modal.querySelector('#bookImageFile');
+      const previewContainer = modal.querySelector('#imagePreviewContainer');
+      const previewImg = modal.querySelector('#imagePreview');
+      
+      fileInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+          if (file.size > 1024 * 1024) {
+            showTemporaryAlert('حجم الصورة يجب أن يكون أقل من 1 ميجابايت', 'error');
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            return;
+          }
+          
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            previewContainer.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        } else {
+          previewContainer.style.display = 'none';
+        }
+      };
+      
+      // معالج إرسال النموذج
+      modal.querySelector('#addImageForm').onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+          showTemporaryAlert('يرجى اختيار صورة', 'error');
+          return;
+        }
+        
+        try {
+          showTemporaryAlert('جاري رفع الصورة...', 'info');
+          
+          const imageUrl = await uploadBookImage(file, bookName);
+          
+          // إضافة الصورة إلى بيانات المستوى
+          if (!levels[levelIndex].booksWithImages) {
+            levels[levelIndex].booksWithImages = {};
+          }
+          levels[levelIndex].booksWithImages[bookName] = imageUrl;
+          
+          // حفظ في Firestore
+          if (isAdmin || (currentUser && currentUser.canEditContent)) {
+            await appDataDocRef.set({ levels }, { merge: true });
+            await addToArchive('add', 'book_image', `إضافة صورة للكتاب "${bookName}" من المستوى "${levels[levelIndex].name}"`);
+          }
+          
+          showTemporaryAlert('تم إضافة الصورة بنجاح', 'success');
+          renderBooksList();
+          modal.remove();
+        } catch (error) {
+          console.error('Error adding image:', error);
+          showTemporaryAlert('حدث خطأ في إضافة الصورة', 'error');
+        }
+      };
+    }
+
+    // دالة عرض نافذة تعديل صورة الكتاب
+    function showEditImageModal(bookName, levelIndex) {
+      const currentImageUrl = levels[levelIndex].booksWithImages[bookName];
+      
+      const modal = document.createElement('div');
+      modal.className = 'image-modal';
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="image-modal-content">
+          <span class="image-modal-close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+          <h3 class="image-modal-title">تعديل صورة الكتاب: ${bookName}</h3>
+          <div style="text-align: center; margin-bottom: 15px;">
+            <p>الصورة الحالية:</p>
+            <img src="${currentImageUrl}" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #ddd;">
+          </div>
+          <form id="editImageForm">
+            <div style="margin-bottom: 15px;">
+              <label for="newBookImageFile">اختر صورة جديدة:</label>
+              <input type="file" id="newBookImageFile" accept="image/*" required style="margin-top: 5px; width: 100%;">
+            </div>
+            <div id="newImagePreviewContainer" style="display: none; margin-bottom: 15px; text-align: center;">
+              <p>الصورة الجديدة:</p>
+              <img id="newImagePreview" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #48bb78;">
+            </div>
+            <div style="text-align: center;">
+              <button type="submit" style="background: #4299e1; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">تحديث الصورة</button>
+              <button type="button" onclick="this.closest('.image-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // معالج معاينة الصورة الجديدة
+      const fileInput = modal.querySelector('#newBookImageFile');
+      const previewContainer = modal.querySelector('#newImagePreviewContainer');
+      const previewImg = modal.querySelector('#newImagePreview');
+      
+      fileInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+          if (file.size > 1024 * 1024) {
+            showTemporaryAlert('حجم الصورة يجب أن يكون أقل من 1 ميجابايت', 'error');
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            return;
+          }
+          
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            previewContainer.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        } else {
+          previewContainer.style.display = 'none';
+        }
+      };
+      
+      // معالج إرسال النموذج
+      modal.querySelector('#editImageForm').onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+          showTemporaryAlert('يرجى اختيار صورة جديدة', 'error');
+          return;
+        }
+        
+        try {
+          showTemporaryAlert('جاري تحديث الصورة...', 'info');
+          
+          const newImageUrl = await uploadBookImage(file, bookName);
+          
+          // تحديث الصورة في بيانات المستوى
+          levels[levelIndex].booksWithImages[bookName] = newImageUrl;
+          
+          // حفظ في Firestore
+          if (isAdmin || (currentUser && currentUser.canEditContent)) {
+            await appDataDocRef.set({ levels }, { merge: true });
+            await addToArchive('edit', 'book_image', `تعديل صورة الكتاب "${bookName}" من المستوى "${levels[levelIndex].name}"`);
+          }
+          
+          showTemporaryAlert('تم تحديث الصورة بنجاح', 'success');
+          renderBooksList();
+          modal.remove();
+        } catch (error) {
+          console.error('Error updating image:', error);
+          showTemporaryAlert('حدث خطأ في تحديث الصورة', 'error');
+        }
+      };
+    }
+
+    // دالة حذف صورة الكتاب
+    async function deleteBookImage(bookName, levelIndex) {
+      if (!confirm(`هل تريد حذف صورة الكتاب "${bookName}"؟`)) {
+        return;
+      }
+      
+      try {
+        // حذف الصورة من البيانات
+        if (levels[levelIndex].booksWithImages && levels[levelIndex].booksWithImages[bookName]) {
+          delete levels[levelIndex].booksWithImages[bookName];
+        }
+        
+        // حفظ في Firestore
+        if (isAdmin || (currentUser && currentUser.canEditContent)) {
+          await appDataDocRef.set({ levels }, { merge: true });
+          await addToArchive('delete', 'book_image', `حذف صورة الكتاب "${bookName}" من المستوى "${levels[levelIndex].name}"`);
+        }
+        
+        showTemporaryAlert('تم حذف الصورة بنجاح', 'success');
+        renderBooksList();
+      } catch (error) {
+        console.error('Error deleting image:', error);
+        showTemporaryAlert('حدث خطأ في حذف الصورة', 'error');
+      }
+    }
+
+    // دالة إغلاق النافذة المنبثقة للصورة
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // دالة عرض نافذة إضافة كتاب
+    function showAddBookModal(levelIndex) {
+      currentLevelForAddBook = levelIndex;
+      document.getElementById('addBookModal').style.display = 'flex';
+      document.getElementById('addBookForm').reset();
+      document.getElementById('imagePreview').style.display = 'none';
+    }
+
+    // دالة إغلاق نافذة إضافة كتاب
+    function closeAddBookModal() {
+      document.getElementById('addBookModal').style.display = 'none';
+      document.getElementById('addBookForm').reset();
+      document.getElementById('imagePreview').style.display = 'none';
+      currentLevelForAddBook = null;
+    }
+
+    // معالج نموذج إضافة الكتاب
+    async function handleAddBookSubmit(e) {
+      e.preventDefault();
+      
+      const bookName = document.getElementById('bookName').value.trim();
+      const imageFile = document.getElementById('bookImage').files[0];
+      
+      if (!bookName) {
+        showTemporaryAlert('يرجى إدخال اسم الكتاب', 'error');
+        return;
+      }
+      
+      if (currentLevelForAddBook === null) {
+        showTemporaryAlert('خطأ في تحديد المستوى', 'error');
+        return;
+      }
+      
+      // التحقق من عدم وجود كتاب بنفس الاسم
+      if (levels[currentLevelForAddBook].books.includes(bookName)) {
+        showTemporaryAlert('الكتاب موجود بالفعل!', 'error');
+        return;
+      }
+      
+      try {
+        showTemporaryAlert('جاري إضافة الكتاب...', 'info');
+        
+        let imageUrl = null;
+        
+        // رفع الصورة إذا كانت موجودة
+        if (imageFile) {
+          imageUrl = await uploadBookImage(imageFile, bookName);
+        }
+        
+        // إضافة الكتاب مع الصورة إلى المصفوفة المحلية
+        const bookData = {
+          name: bookName,
+          imageUrl: imageUrl
+        };
+        
+        // تحديث بنية البيانات لتشمل الصور
+        if (!levels[currentLevelForAddBook].booksWithImages) {
+          levels[currentLevelForAddBook].booksWithImages = {};
+        }
+        
+        levels[currentLevelForAddBook].books.push(bookName);
+        levels[currentLevelForAddBook].books = sortBooks(levels[currentLevelForAddBook].books);
+        
+        if (imageUrl) {
+          levels[currentLevelForAddBook].booksWithImages[bookName] = imageUrl;
+        }
+        
+        // حفظ في Firestore
+        await appDataDocRef.set({ levels }, { merge: true });
+        
+        // إضافة العملية إلى الأرشيف
+        await addToArchive('add', 'book', `إضافة الكتاب "${bookName}" إلى المستوى "${levels[currentLevelForAddBook].name}"`);
+        
+        // تحديث الواجهة
+        renderBooksList();
+        closeAddBookModal();
+        showTemporaryAlert('تم إضافة الكتاب بنجاح!', 'success');
+        
+        // حفظ في التخزين المحلي كنسخة احتياطية
+        localStorage.setItem('bookAppData_levels', JSON.stringify({ levels }));
+        
+      } catch (error) {
+        console.error('خطأ في إضافة الكتاب:', error);
+        showTemporaryAlert('حدث خطأ في إضافة الكتاب. يرجى المحاولة مرة أخرى', 'error');
+      }
+    }
+
     function renderLevels() {
       const levelsList = document.getElementById('levelsList');
       levelsList.innerHTML = '';
@@ -136,8 +567,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
          function renderBooksList() {
        const booksListDiv = document.getElementById('booksList');
-       const level = levels[currentLevelIndex];
-       let books = level.books;
+       const currentLevel = levels[currentLevelIndex];
+       let books = currentLevel.books;
        if (searchTerm) {
          books = books.filter(b => b.toLowerCase().includes(searchTerm.toLowerCase()));
        }
@@ -146,7 +577,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
        books.forEach(book => {
         const btn = document.createElement('div');
         btn.className = 'book-btn';
-        const count = (chosenBooks[level.name] && chosenBooks[level.name][book]) ? chosenBooks[level.name][book] : 0;
+        const levelName = currentLevel.name;
+        const count = (chosenBooks[levelName] && chosenBooks[levelName][book]) ? chosenBooks[levelName][book] : 0;
         if (count > 0) btn.classList.add('selected');
         
         // إنشاء حاوي العنوان
@@ -162,25 +594,59 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         const controlsDiv = document.createElement('div');
         controlsDiv.className = 'book-controls';
  
-         // زر ناقص
-         const minusBtn = document.createElement('button');
-         minusBtn.className = 'minus-btn';
-         minusBtn.textContent = '−';
-         minusBtn.onclick = (e) => {
-           e.stopPropagation();
-           const levelName = levels[currentLevelIndex].name;
-           if (chosenBooks[levelName] && chosenBooks[levelName][book] > 0) {
-             chosenBooks[levelName][book]--;
-             if (chosenBooks[levelName][book] === 0) delete chosenBooks[levelName][book];
-             saveData();
-             renderBooksList();
-             renderChosenBooksTables();
-           }
-         };
-         controlsDiv.appendChild(minusBtn);
  
-         // زر حذف كتاب (للمديرين والمحررين)
+         // أزرار إدارة الصور (للمديرين والمحررين)
          const hasEditPermission = isAdmin || (currentUser && currentUser.canEditContent);
+         
+         if (currentLevel.booksWithImages && currentLevel.booksWithImages[book]) {
+           // زر عرض الصورة
+           const viewImageBtn = document.createElement('button');
+           viewImageBtn.className = 'view-image-btn';
+           viewImageBtn.textContent = '👁️';
+           viewImageBtn.title = 'عرض صورة الكتاب';
+           viewImageBtn.onclick = (e) => {
+             e.stopPropagation();
+             showImageModal(currentLevel.booksWithImages[book], book);
+           };
+           controlsDiv.appendChild(viewImageBtn);
+           
+           if (hasEditPermission) {
+             // زر تعديل الصورة
+             const editImageBtn = document.createElement('button');
+             editImageBtn.className = 'edit-image-btn';
+             editImageBtn.textContent = '✏️';
+             editImageBtn.title = 'تعديل صورة الكتاب';
+             editImageBtn.onclick = (e) => {
+               e.stopPropagation();
+               showEditImageModal(book, currentLevelIndex);
+             };
+             controlsDiv.appendChild(editImageBtn);
+             
+             // زر حذف الصورة
+             const deleteImageBtn = document.createElement('button');
+             deleteImageBtn.className = 'delete-image-btn';
+             deleteImageBtn.textContent = '🗑️';
+             deleteImageBtn.title = 'حذف صورة الكتاب';
+             deleteImageBtn.onclick = (e) => {
+               e.stopPropagation();
+               deleteBookImage(book, currentLevelIndex);
+             };
+             controlsDiv.appendChild(deleteImageBtn);
+           }
+         } else if (hasEditPermission) {
+           // زر إضافة صورة للكتب التي لا تحتوي على صورة
+           const addImageBtn = document.createElement('button');
+           addImageBtn.className = 'add-image-btn';
+           addImageBtn.textContent = '📷';
+           addImageBtn.title = 'إضافة صورة للكتاب';
+           addImageBtn.onclick = (e) => {
+             e.stopPropagation();
+             showAddImageModal(book, currentLevelIndex);
+           };
+           controlsDiv.appendChild(addImageBtn);
+         }
+
+         // زر حذف كتاب (للمديرين والمحررين)
          if (hasEditPermission) {
            const deleteBookBtn = document.createElement('button');
            deleteBookBtn.className = 'remove-book-btn';
@@ -191,14 +657,19 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               try {
                 // حذف الكتاب محلياً
                levels[currentLevelIndex].books = levels[currentLevelIndex].books.filter(b => b !== book);
-               if (chosenBooks[level.name]) delete chosenBooks[level.name][book];
+               if (chosenBooks[currentLevel.name]) delete chosenBooks[currentLevel.name][book];
+               
+               // حذف الصورة من البيانات إذا كانت موجودة
+               if (levels[currentLevelIndex].booksWithImages && levels[currentLevelIndex].booksWithImages[book]) {
+                 delete levels[currentLevelIndex].booksWithImages[book];
+               }
                 
                 // حفظ التغييرات في Firestore مباشرة
                 if (isAdmin || (currentUser && currentUser.canEditContent)) {
                   await appDataDocRef.set({ levels }, { merge: true });
                   
                   // إضافة العملية إلى الأرشيف
-                  await addToArchive('delete', 'book', `حذف الكتاب "${book}" من المستوى "${level.name}"`);
+                  await addToArchive('delete', 'book', `حذف الكتاب "${book}" من المستوى "${currentLevel.name}"`);
                   
                   showTemporaryAlert('تم حذف الكتاب بنجاح وتحديث قاعدة البيانات', 'success');
                 } else {
@@ -227,15 +698,23 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
            controlsDiv.appendChild(deleteBookBtn);
          }
  
-         // زر زائد
-         const plusBtn = document.createElement('button');
-         plusBtn.className = 'plus-btn';
-         plusBtn.textContent = '+';
-         plusBtn.onclick = (e) => {
+         // زر ناقص
+         const minusBtn = document.createElement('button');
+         minusBtn.className = 'minus-btn';
+         minusBtn.textContent = '−';
+         minusBtn.onclick = (e) => {
            e.stopPropagation();
-           selectBook(book);
+           if (count > 0) {
+             chosenBooks[levels[currentLevelIndex].name][book] = count - 1;
+             if (chosenBooks[levels[currentLevelIndex].name][book] === 0) {
+               delete chosenBooks[levels[currentLevelIndex].name][book];
+             }
+             renderBooksList();
+             renderChosenBooksTables();
+             saveData();
+           }
          };
-         controlsDiv.appendChild(plusBtn);
+         controlsDiv.appendChild(minusBtn);
 
          // العدد
          const countDiv = document.createElement('span');
@@ -290,39 +769,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
          return;
        }
 
-       const bookName = prompt("أدخل اسم الكتاب الجديد:");
-       if (bookName && bookName.trim()) {
-         const trimmedBookName = bookName.trim();
-         
-         if (!levels[currentLevelIndex].books.includes(trimmedBookName)) {
-           try {
-             // إضافة الكتاب محلياً
-             levels[currentLevelIndex].books.push(trimmedBookName);
-             levels[currentLevelIndex].books = sortBooks(levels[currentLevelIndex].books);
-             
-             // حفظ في Firestore
-             await appDataDocRef.set({ levels }, { merge: true });
-             
-             // إضافة العملية إلى الأرشيف
-             await addToArchive('add', 'book', `إضافة الكتاب "${trimmedBookName}" إلى المستوى "${levels[currentLevelIndex].name}"`);
-             
-             // تحديث الواجهة
-             renderBooksList();
-             showTemporaryAlert("تم إضافة الكتاب بنجاح وسيظهر لجميع المستخدمين", "success");
-             
-             // حفظ في التخزين المحلي كنسخة احتياطية
-             localStorage.setItem('bookAppData_levels', JSON.stringify({ levels }));
-           } catch (error) {
-             console.error("خطأ في حفظ الكتاب:", error);
-         showTemporaryAlert("حدث خطأ في حفظ الكتاب. يرجى المحاولة مرة أخرى", "error");
-             
-             // إزالة الكتاب محلياً إذا فشل الحفظ
-             levels[currentLevelIndex].books = levels[currentLevelIndex].books.filter(b => b !== trimmedBookName);
-           }
-         } else {
-           showTemporaryAlert("الكتاب موجود بالفعل!", "error");
-         }
-       }
+       // استخدام النافذة المنبثقة الجديدة
+       showAddBookModal(currentLevelIndex);
      }
 
     function selectBook(book) {
@@ -2727,6 +3175,27 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               <span class="notification-detail-info-value">${data.userPhone || 'غير محدد'}</span>
             </div>
           `;
+          
+          // إضافة زر عرض صورة الكتاب إذا كانت متوفرة - أولاً من بيانات الإشعار، ثم من المستوى
+          let bookImageUrl = data.bookImageUrl || null;
+          
+          // إذا لم توجد صورة في بيانات الإشعار، ابحث في بيانات المستوى
+          if (!bookImageUrl && data.bookLevel && data.bookName) {
+            const level = levels.find(l => l.name === data.bookLevel);
+            if (level && level.bookImages && level.bookImages[data.bookName]) {
+              bookImageUrl = level.bookImages[data.bookName];
+            }
+          }
+          
+          if (bookImageUrl) {
+            infoHTML += `
+              <div class="notification-detail-info-item" style="margin-top: 15px; text-align: center;">
+                <button class="view-notification-image-btn" onclick="showImageModal('${bookImageUrl}', '${data.bookName}')" title="عرض صورة الكتاب">
+                  👁️ عرض صورة الكتاب
+                </button>
+              </div>
+            `;
+          }
         }
         
         info.innerHTML = infoHTML;
@@ -2835,7 +3304,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
                 type: exchangeData.type,
                 userName: exchangeData.userName,
                 userEmail: exchangeData.userEmail,
-                userPhone: exchangeData.userPhone
+                userPhone: exchangeData.userPhone,
+                bookImageUrl: exchangeData.bookImageUrl
               })
             );
           }
@@ -4344,7 +4814,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       editingExchangeId = null;
     }
     
-    // تقديم نموذج الكتاب الجديد
+    // تقديم نموذج إضافة كتاب جديد
     async function submitExchangeFormNew(type) {
       if (!currentUser) {
         alert('يجب تسجيل الدخول أولاً لإضافة عرض أو طلب');
@@ -4355,6 +4825,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       const bookName = document.getElementById('exchangeBookName').value.trim();
       const bookLevel = document.getElementById('exchangeBookLevel').value;
       const count = parseInt(document.getElementById('exchangeBookCountNew').value);
+      const imageFile = document.getElementById('exchangeBookImage').files[0];
       
       if (!bookName || !bookLevel || count < 1) {
         alert('يرجى ملء جميع الحقول بشكل صحيح');
@@ -4365,6 +4836,15 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         // حساب تاريخ انتهاء الصلاحية (بعد شهرين)
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + 60); // 60 يوم (شهرين)
+        
+        let bookImageUrl = null;
+        
+        // رفع الصورة إذا تم اختيارها
+        if (imageFile) {
+          const imageRef = storage.ref(`book-images/${Date.now()}_${imageFile.name}`);
+          const uploadTask = await imageRef.put(imageFile);
+          bookImageUrl = await uploadTask.ref.getDownloadURL();
+        }
         
         const exchangeData = {
           userId: currentUser.uid,
@@ -4377,7 +4857,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           type: type, // 'offer' or 'request'
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          expiryDate: expiryDate
+          expiryDate: expiryDate,
+          bookImageUrl: bookImageUrl
         };
         
         // تنسيق تاريخ انتهاء الصلاحية للعرض
@@ -4393,8 +4874,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             return;
           }
           
-          const exchangeData = exchangeDoc.data();
-          const isOwner = exchangeData.userId === currentUser.uid;
+          const exchangeDocData = exchangeDoc.data();
+          const isOwner = exchangeDocData.userId === currentUser.uid;
           
           // التحقق من الصلاحيات - يسمح فقط للمالك أو المدير
           if (!isOwner && !isAdmin) {
@@ -4403,13 +4884,20 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           }
           
           // تحديث الإعلان
-          await exchangeCollection.doc(editingExchangeId).update({
+          const updateData = {
             bookName: bookName,
             bookLevel: bookLevel,
             count: count,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             expiryDate: expiryDate
-          });
+          };
+          
+          // إضافة رابط الصورة إذا تم رفع صورة جديدة
+          if (bookImageUrl) {
+            updateData.bookImageUrl = bookImageUrl;
+          }
+          
+          await exchangeCollection.doc(editingExchangeId).update(updateData);
           
           // رسالة نجاح مخصصة
           if (isAdmin && !isOwner) {
@@ -4427,6 +4915,11 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
+          
+          // إضافة الكتاب إلى قائمة الكتب في المستوى إذا لم يكن موجوداً
+          if (bookImageUrl) {
+            await addBookToLevelIfNotExists(bookName, bookLevel, bookImageUrl);
+          }
           
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
@@ -4467,6 +4960,15 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + 60); // 60 يوم (شهرين)
         
+        // البحث عن صورة الكتاب في بيانات المستوى
+        let bookImageUrl = null;
+        if (bookLevel && bookName) {
+          const level = levels.find(l => l.name === bookLevel);
+          if (level && level.bookImages && level.bookImages[bookName]) {
+            bookImageUrl = level.bookImages[bookName];
+          }
+        }
+
         const exchangeData = {
           userId: currentUser.uid,
           userName: currentUser.name || currentUser.displayName || 'مستخدم',
@@ -4478,7 +4980,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           type: type, // 'offer' or 'request'
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          expiryDate: expiryDate
+          expiryDate: expiryDate,
+          bookImageUrl: bookImageUrl
         };
         
         // تنسيق تاريخ انتهاء الصلاحية للعرض
@@ -5315,11 +5818,29 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             exchangeDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           }
           
+          // البحث عن صورة الكتاب - أولاً من بيانات الإعلان، ثم من المستوى
+          let bookImageUrl = exchange.bookImageUrl || null;
+          
+          // إذا لم توجد صورة في الإعلان، ابحث في بيانات المستوى
+          if (!bookImageUrl && exchange.bookLevel && exchange.bookName) {
+            const level = levels.find(l => l.name === exchange.bookLevel);
+            if (level && level.bookImages && level.bookImages[exchange.bookName]) {
+              bookImageUrl = level.bookImages[exchange.bookName];
+            }
+          }
+          
+          // إضافة تسجيل للتشخيص
+          console.log('Exchange:', exchange.bookName, 'Level:', exchange.bookLevel, 'ImageUrl:', bookImageUrl);
+
           const card = document.createElement('div');
           card.className = `exchange-card ${exchange.type}`;
+
           card.innerHTML = `
             <div class="exchange-type ${exchange.type}">${exchange.type === 'offer' ? 'عرض' : 'طلب'}</div>
-            <div class="exchange-book-title">${exchange.bookName}</div>
+            <div class="exchange-book-title">
+              ${exchange.bookName}
+              ${bookImageUrl ? `<button class="view-exchange-image-btn" onclick="event.stopPropagation(); showImageModal('${bookImageUrl}', '${exchange.bookName}')" title="عرض صورة الكتاب">👁️</button>` : ''}
+            </div>
             <div style="color: #4a5568; margin-bottom: 5px;">
               ${exchange.bookLevel ? `المستوى: <strong>${exchange.bookLevel}</strong>` : ''}
             </div>
@@ -6358,6 +6879,21 @@ function updateSidebarToggleBadge() {
     }
   }
 }
+
+// ربط الدوال بالنافذة العامة
+window.showImageModal = showImageModal;
+window.closeImageModal = closeImageModal;
+window.previewBookImage = previewBookImage;
+window.showAddBookModal = showAddBookModal;
+window.closeAddBookModal = closeAddBookModal;
+
+// إعداد معالج نموذج إضافة الكتاب
+document.addEventListener('DOMContentLoaded', function() {
+  const addBookForm = document.getElementById('addBookForm');
+  if (addBookForm) {
+    addBookForm.addEventListener('submit', handleAddBookSubmit);
+  }
+});
 
 // Periodic sync for dynamic updates
 setInterval(() => {

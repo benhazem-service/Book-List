@@ -519,6 +519,16 @@
           </select>
         </div>
         <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeBookImage">صورة الكتاب (اختيارية)</label>
+          <input type="file" class="exchange-form-input" id="exchangeBookImage" accept="image/*" onchange="previewExchangeBookImage(this)">
+          <div id="exchangeBookImagePreview" style="margin-top: 10px; text-align: center; display: none;">
+            <img id="exchangeBookImagePreviewImg" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 2px solid #e2e8f0;">
+            <div style="margin-top: 5px;">
+              <button type="button" onclick="removeExchangeBookImage()" style="background: #fc8181; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">إزالة الصورة</button>
+            </div>
+          </div>
+        </div>
+        <div class="exchange-form-group">
           <label class="exchange-form-label" id="exchangeCountLabelNew" for="exchangeBookCountNew">عدد الكتب المتاحة</label>
           <input type="number" class="exchange-form-input" id="exchangeBookCountNew" min="1" value="1" required>
         </div>
@@ -555,12 +565,48 @@
       </form>
     </div>
   </div>
+
+  <!-- Add Book Modal -->
+  <div class="modal" id="addBookModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeAddBookModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إضافة كتاب جديد</h3>
+      <form id="addBookForm" class="auth-form">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="bookName">اسم الكتاب</label>
+          <input type="text" class="exchange-form-input" id="bookName" placeholder="أدخل اسم الكتاب" required>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="bookImage">صورة الكتاب (اختياري - أقل من 1MB)</label>
+          <input type="file" class="exchange-form-input" id="bookImage" accept="image/*" onchange="previewBookImage(this)">
+          <div id="imagePreview" style="margin-top: 10px; text-align: center; display: none;">
+            <img id="previewImg" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #e2e8f0;">
+          </div>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="submit" class="exchange-form-submit">إضافة الكتاب</button>
+          <button type="button" class="exchange-form-cancel" onclick="closeAddBookModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <div class="image-modal-content" onclick="event.stopPropagation()">
+      <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+      <h3 id="imageModalTitle" class="image-modal-title"></h3>
+      <img id="imageModalImg" class="image-modal-img">
+    </div>
+  </div>
+
   <div id="connection-status"></div>
 
   <!-- Firebase SDKs (using stable version 9.23.0) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
   <!-- تحميل إعدادات Firebase من ملف منفصل -->
   <script src="config.js"></script>
