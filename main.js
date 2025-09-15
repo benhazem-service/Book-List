@@ -4916,8 +4916,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
-          // إضافة الكتاب إلى قائمة الكتب في المستوى إذا لم يكن موجوداً
-          if (bookImageUrl) {
+          // إضافة الكتاب إلى قائمة الكتب في المستوى إذا لم يكن موجوداً (فقط للمديرين)
+          if (bookImageUrl && isAdmin) {
             await addBookToLevelIfNotExists(bookName, bookLevel, bookImageUrl);
           }
           
@@ -4964,18 +4964,14 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         let bookImageUrl = null;
         if (bookLevel && bookName) {
           const level = levels.find(l => l.name === bookLevel);
-          if (level && level.bookImages && level.bookImages[bookName]) {
-            bookImageUrl = level.bookImages[bookName];
-          }
-        }
-        
-        // إذا لم توجد صورة، ابحث في قائمة الكتب الأصلية للمستوى
-        if (!bookImageUrl && bookLevel && bookName) {
-          const level = levels.find(l => l.name === bookLevel);
-          if (level && level.books && level.books.includes(bookName)) {
-            // الكتاب موجود في القائمة الأصلية، ابحث عن صورته في bookImages
+          if (level) {
+            // البحث في bookImages أولاً
             if (level.bookImages && level.bookImages[bookName]) {
               bookImageUrl = level.bookImages[bookName];
+            }
+            // إذا لم توجد، ابحث في booksWithImages
+            else if (level.booksWithImages && level.booksWithImages[bookName]) {
+              bookImageUrl = level.booksWithImages[bookName];
             }
           }
         }
@@ -5018,13 +5014,20 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           }
           
           // تحديث الإعلان
-          await exchangeCollection.doc(editingExchangeId).update({
+          const updateData = {
             bookName: bookName,
             bookLevel: bookLevel,
             count: count,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             expiryDate: expiryDate
-          });
+          };
+          
+          // إضافة رابط الصورة إذا كان متوفراً
+          if (bookImageUrl) {
+            updateData.bookImageUrl = bookImageUrl;
+          }
+          
+          await exchangeCollection.doc(editingExchangeId).update(updateData);
           
           // رسالة نجاح مخصصة
           if (isAdmin && !isOwner) {
@@ -5043,8 +5046,10 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
-          // إضافة الكتاب إلى بيانات المستوى إذا لم يكن موجوداً (بدون صورة)
-          await addBookToLevelIfNotExists(bookName, bookLevel, null);
+          // إضافة الكتاب إلى بيانات المستوى إذا لم يكن موجوداً (فقط للمديرين)
+          if (isAdmin) {
+            await addBookToLevelIfNotExists(bookName, bookLevel, null);
+          }
           
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
