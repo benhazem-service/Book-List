@@ -222,6 +222,23 @@
         </div>
       </div>
       
+      <!-- Admin Bulk Actions for Other Users' Listings -->
+      <div id="adminBulkActionsContainer" class="bulk-actions-container" style="display: none; margin: 15px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border: 1px solid #f6ad55;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 5px; color: #c05621; font-weight: 600;">
+            👑 صلاحيات المدير
+          </div>
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="adminSelectAllExchanges" onchange="adminToggleSelectAll()" style="transform: scale(1.2);">
+            <span style="font-weight: 500;">تحديد الكل</span>
+          </label>
+          <button id="adminDeleteSelectedBtn" onclick="adminDeleteSelectedExchanges()" disabled style="background: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 0.9em; opacity: 0.5;">
+            🗑️ حذف المحدد (مدير)
+          </button>
+          <span id="adminSelectedCount" style="color: #4a5568; font-size: 0.9em;">0 محدد</span>
+        </div>
+      </div>
+      
       <!-- Search Interface -->
       <div id="exchangeSearchSection" class="exchange-search-section" style="display: none;">
         <div class="exchange-search-container">

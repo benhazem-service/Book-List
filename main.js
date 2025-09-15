@@ -4580,11 +4580,100 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     // تشغيل التنظيف عند بدء التطبيق
     setTimeout(cleanupExpiredExchanges, 5000); // بعد 5 ثوان من بدء التطبيق
     
+    // دوال إدارة الحذف المجمع للأدمن
+    function adminToggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('adminSelectAllExchanges');
+      const exchangeCheckboxes = document.querySelectorAll('.admin-exchange-checkbox');
+      
+      exchangeCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+      
+      adminUpdateSelectedCount();
+    }
+    
+    function adminUpdateSelectedCount() {
+      const selectedCheckboxes = document.querySelectorAll('.admin-exchange-checkbox:checked');
+      const deleteSelectedBtn = document.getElementById('adminDeleteSelectedBtn');
+      const selectedCountSpan = document.getElementById('adminSelectedCount');
+      
+      const count = selectedCheckboxes.length;
+      selectedCountSpan.textContent = `${count} محدد`;
+      
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+      }
+    }
+    
+    async function adminDeleteSelectedExchanges() {
+      if (!isAdmin) {
+        showTemporaryAlert('ليس لديك صلاحية لحذف إعلانات المستخدمين', 'error');
+        return;
+      }
+      
+      const selectedCheckboxes = document.querySelectorAll('.admin-exchange-checkbox:checked');
+      const exchangeIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.exchangeId);
+      
+      if (exchangeIds.length === 0) {
+        showTemporaryAlert('لم يتم تحديد أي إعلانات للحذف', 'error');
+        return;
+      }
+      
+      const confirmMessage = `هل أنت متأكد من حذف ${exchangeIds.length} إعلان محدد؟ (بصلاحية المدير)`;
+      if (!confirm(confirmMessage)) return;
+      
+      try {
+        showTemporaryAlert('جاري حذف الإعلانات المحددة...', 'info');
+        
+        for (const exchangeId of exchangeIds) {
+          // جلب بيانات الإعلان قبل الحذف
+          const exchangeDoc = await exchangeCollection.doc(exchangeId).get();
+          if (exchangeDoc.exists) {
+            const exchangeData = exchangeDoc.data();
+            
+            // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+            if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+              try {
+                const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+                await imageRef.delete();
+              } catch (imageError) {
+                console.log('تعذر حذف الصورة:', imageError);
+              }
+            }
+          }
+          
+          await exchangeCollection.doc(exchangeId).delete();
+          await deleteRelatedNotifications(exchangeId);
+        }
+        
+        showTemporaryAlert(`تم حذف ${exchangeIds.length} إعلان بنجاح (بصلاحية المدير)`, 'success');
+        
+        // إعادة تعيين حالة التحديد
+        document.getElementById('adminSelectAllExchanges').checked = false;
+        adminUpdateSelectedCount();
+        
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+        
+      } catch (error) {
+        console.error('Error deleting selected exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف بعض الإعلانات', 'error');
+      }
+    }
+    
     // ربط الدوال بالنافذة العامة
     window.toggleSelectAll = toggleSelectAll;
     window.updateSelectedCount = updateSelectedCount;
     window.deleteSelectedExchanges = deleteSelectedExchanges;
     window.deleteAllMyExchanges = deleteAllMyExchanges;
+    window.adminToggleSelectAll = adminToggleSelectAll;
+    window.adminUpdateSelectedCount = adminUpdateSelectedCount;
+    window.adminDeleteSelectedExchanges = adminDeleteSelectedExchanges;
     window.isImageInOfficialBooks = isImageInOfficialBooks;
     window.cleanupExpiredExchanges = cleanupExpiredExchanges;
     window.showExchangeOption = showExchangeOption;
@@ -5744,11 +5833,21 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       
       // إظهار/إخفاء حاوي الإجراءات المجمعة
       const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+      const adminBulkActionsContainer = document.getElementById('adminBulkActionsContainer');
+      
       if (bulkActionsContainer) {
         if (tabType === 'my') {
           bulkActionsContainer.style.display = 'block';
         } else {
           bulkActionsContainer.style.display = 'none';
+        }
+      }
+      
+      if (adminBulkActionsContainer) {
+        if (tabType !== 'my' && isAdmin) {
+          adminBulkActionsContainer.style.display = 'block';
+        } else {
+          adminBulkActionsContainer.style.display = 'none';
         }
       }
       
@@ -6075,6 +6174,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
           card.innerHTML = `
             ${isOwner && currentExchangeType === 'my' ? `<div class="exchange-checkbox-container"><input type="checkbox" class="exchange-checkbox" data-exchange-id="${exchangeId}" onchange="updateSelectedCount()"></div>` : ''}
+            ${!isOwner && isAdmin && currentExchangeType !== 'my' ? `<div class="exchange-checkbox-container"><input type="checkbox" class="admin-exchange-checkbox" data-exchange-id="${exchangeId}" onchange="adminUpdateSelectedCount()"></div>` : ''}
             <div class="exchange-type ${exchange.type}">${exchange.type === 'offer' ? 'عرض' : 'طلب'}</div>
             <div class="exchange-book-title">
               ${exchange.bookName}
