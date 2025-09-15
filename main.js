@@ -4508,11 +4508,85 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
     }
 
+    // دالة للتحقق من وجود الصورة في قوائم الكتب الرسمية
+    function isImageInOfficialBooks(bookName, levelName, imageUrl) {
+      const level = levels.find(l => l.name === levelName);
+      if (!level) return false;
+      
+      // التحقق من bookImages
+      if (level.bookImages && level.bookImages[bookName] === imageUrl) {
+        return true;
+      }
+      
+      // التحقق من booksWithImages
+      if (level.booksWithImages && level.booksWithImages[bookName] === imageUrl) {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    // دالة تنظيف الإعلانات المنتهية الصلاحية
+    async function cleanupExpiredExchanges() {
+      try {
+        const now = new Date();
+        const expiredExchanges = await exchangeCollection
+          .where('expiryDate', '<=', now)
+          .get();
+        
+        if (expiredExchanges.empty) {
+          console.log('لا توجد إعلانات منتهية الصلاحية للحذف');
+          return;
+        }
+        
+        const batch = db.batch();
+        let deletedCount = 0;
+        
+        for (const doc of expiredExchanges.docs) {
+          const exchangeData = doc.data();
+          
+          // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+          if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+            try {
+              const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+              await imageRef.delete();
+            } catch (imageError) {
+              console.log('تعذر حذف الصورة:', imageError);
+            }
+          }
+          
+          // حذف الإشعارات المرتبطة
+          await deleteRelatedNotifications(doc.id);
+          
+          // إضافة الإعلان للحذف المجمع
+          batch.delete(exchangeCollection.doc(doc.id));
+          deletedCount++;
+        }
+        
+        await batch.commit();
+        console.log(`تم حذف ${deletedCount} إعلان منتهي الصلاحية`);
+        
+        // تحديث الإحصائيات
+        await countExchangeStats();
+        
+      } catch (error) {
+        console.error('خطأ في تنظيف الإعلانات المنتهية الصلاحية:', error);
+      }
+    }
+    
+    // تشغيل تنظيف الإعلانات المنتهية الصلاحية كل ساعة
+    setInterval(cleanupExpiredExchanges, 60 * 60 * 1000); // كل ساعة
+    
+    // تشغيل التنظيف عند بدء التطبيق
+    setTimeout(cleanupExpiredExchanges, 5000); // بعد 5 ثوان من بدء التطبيق
+    
     // ربط الدوال بالنافذة العامة
     window.toggleSelectAll = toggleSelectAll;
     window.updateSelectedCount = updateSelectedCount;
     window.deleteSelectedExchanges = deleteSelectedExchanges;
     window.deleteAllMyExchanges = deleteAllMyExchanges;
+    window.isImageInOfficialBooks = isImageInOfficialBooks;
+    window.cleanupExpiredExchanges = cleanupExpiredExchanges;
     window.showExchangeOption = showExchangeOption;
     window.loadExistingBooks = loadExistingBooks;
 
@@ -5049,10 +5123,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
-          // إضافة الكتاب إلى قائمة الكتب في المستوى إذا لم يكن موجوداً (فقط للمديرين)
-          if (bookImageUrl && isAdmin) {
-            await addBookToLevelIfNotExists(bookName, bookLevel, bookImageUrl);
-          }
+          // لا نضيف الكتاب إلى قائمة المستوى - الإعلانات منفصلة عن قوائم الكتب الرسمية
           
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
@@ -5179,10 +5250,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
-          // إضافة الكتاب إلى بيانات المستوى إذا لم يكن موجوداً (فقط للمديرين)
-          if (isAdmin) {
-            await addBookToLevelIfNotExists(bookName, bookLevel, null);
-          }
+          // لا نضيف الكتاب إلى قائمة المستوى - الإعلانات منفصلة عن قوائم الكتب الرسمية
           
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
@@ -5198,7 +5266,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
     }
     
-    // Delete exchange
+    // Delete exchange and its associated image
     async function deleteExchange(exchangeId) {
       if (!currentUser) {
         alert('يجب تسجيل الدخول أولاً لحذف الإعلان');
@@ -5214,6 +5282,16 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         }
         
         const exchangeData = exchangeDoc.data();
+        
+        // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+        if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+          try {
+            const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+            await imageRef.delete();
+          } catch (imageError) {
+            console.log('تعذر حذف الصورة أو أنها محذوفة بالفعل:', imageError);
+          }
+        }
         const isOwner = exchangeData.userId === currentUser.uid;
         
         // التحقق من الصلاحيات - يسمح فقط للمالك أو المدير
