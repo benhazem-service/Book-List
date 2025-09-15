@@ -312,7 +312,13 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
     // دالة عرض نافذة تعديل صورة الكتاب
     function showEditImageModal(bookName, levelIndex) {
-      const currentImageUrl = levels[levelIndex].booksWithImages[bookName];
+      // البحث عن رابط الصورة الحالي في كلا المكانين
+      let currentImageUrl = null;
+      if (levels[levelIndex].booksWithImages && levels[levelIndex].booksWithImages[bookName]) {
+        currentImageUrl = levels[levelIndex].booksWithImages[bookName];
+      } else if (levels[levelIndex].bookImages && levels[levelIndex].bookImages[bookName]) {
+        currentImageUrl = levels[levelIndex].bookImages[bookName];
+      }
       
       const modal = document.createElement('div');
       modal.className = 'image-modal';
@@ -598,7 +604,15 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
          // أزرار إدارة الصور (للمديرين والمحررين)
          const hasEditPermission = isAdmin || (currentUser && currentUser.canEditContent);
          
+         // البحث عن صورة الكتاب في كلا المكانين
+         let bookImageUrl = null;
          if (currentLevel.booksWithImages && currentLevel.booksWithImages[book]) {
+           bookImageUrl = currentLevel.booksWithImages[book];
+         } else if (currentLevel.bookImages && currentLevel.bookImages[book]) {
+           bookImageUrl = currentLevel.bookImages[book];
+         }
+         
+         if (bookImageUrl) {
            // زر عرض الصورة
            const viewImageBtn = document.createElement('button');
            viewImageBtn.className = 'view-image-btn';
@@ -606,7 +620,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
            viewImageBtn.title = 'عرض صورة الكتاب';
            viewImageBtn.onclick = (e) => {
              e.stopPropagation();
-             showImageModal(currentLevel.booksWithImages[book], book);
+             showImageModal(bookImageUrl, book);
            };
            controlsDiv.appendChild(viewImageBtn);
            
