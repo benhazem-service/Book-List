@@ -4389,13 +4389,133 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     // تعريف وظيفة switchExchangeTab في النافذة العامة
     // نستخدم نفس الاسم للوظيفة الداخلية والعامة
     const originalSwitchExchangeTab = switchExchangeTab;
-    window.switchExchangeTab = async function(tabType) {
-      await originalSwitchExchangeTab(tabType);
-    };
-    window.switchExchangeLevel = switchExchangeLevel;
+    window.switchExchangeTab = switchExchangeTab;
+
+    // متغير لتتبع نوع التبادل الحالي (تم نقله لأعلى لتجنب التكرار)
+    let currentExchangeType = 'my';
+
+    // دوال إدارة الحذف المجمع
+    function toggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('selectAllExchanges');
+      const exchangeCheckboxes = document.querySelectorAll('.exchange-checkbox');
+
+      exchangeCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const selectedCheckboxes = document.querySelectorAll('.exchange-checkbox:checked');
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      const selectedCountSpan = document.getElementById('selectedCount');
+
+      const count = selectedCheckboxes.length;
+      selectedCountSpan.textContent = `${count} محدد`;
+
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+      }
+    }
+
+    async function deleteSelectedExchanges() {
+      const selectedCheckboxes = document.querySelectorAll('.exchange-checkbox:checked');
+      const exchangeIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.exchangeId);
+
+      if (exchangeIds.length === 0) {
+        showTemporaryAlert('لم يتم تحديد أي إعلانات للحذف', 'error');
+        return;
+      }
+
+      const confirmMessage = `هل أنت متأكد من حذف ${exchangeIds.length} إعلان محدد؟`;
+      if (!confirm(confirmMessage)) return;
+
+      try {
+        showTemporaryAlert('جاري حذف الإعلانات المحددة...', 'info');
+
+        for (const exchangeId of exchangeIds) {
+          await exchangeCollection.doc(exchangeId).delete();
+          await deleteRelatedNotifications(exchangeId);
+        }
+
+        showTemporaryAlert(`تم حذف ${exchangeIds.length} إعلان بنجاح`, 'success');
+
+        // إعادة تعيين حالة التحديد
+        document.getElementById('selectAllExchanges').checked = false;
+        updateSelectedCount();
+
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+
+      } catch (error) {
+        console.error('Error deleting selected exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف بعض الإعلانات', 'error');
+      }
+    }
+
+    async function deleteAllMyExchanges() {
+      if (!currentUser) {
+        showTemporaryAlert('يجب تسجيل الدخول أولاً', 'error');
+        return;
+      }
+
+      const confirmMessage = 'هل أنت متأكد من حذف جميع إعلاناتك؟ هذا الإجراء لا يمكن التراجع عنه!';
+      if (!confirm(confirmMessage)) return;
+
+      try {
+        showTemporaryAlert('جاري حذف جميع إعلاناتك...', 'info');
+
+        // جلب جميع إعلانات المستخدم
+        const userExchanges = await exchangeCollection
+          .where('userId', '==', currentUser.uid)
+          .get();
+
+        if (userExchanges.empty) {
+          showTemporaryAlert('لا توجد إعلانات لحذفها', 'info');
+          return;
+        }
+
+        const batch = db.batch();
+        let deletedCount = 0;
+
+        for (const doc of userExchanges.docs) {
+          batch.delete(exchangeCollection.doc(doc.id));
+          await deleteRelatedNotifications(doc.id);
+          deletedCount++;
+        }
+
+        await batch.commit();
+
+        showTemporaryAlert(`تم حذف ${deletedCount} إعلان بنجاح`, 'success');
+
+        // إعادة تعيين حالة التحديد
+        document.getElementById('selectAllExchanges').checked = false;
+        updateSelectedCount();
+
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+
+      } catch (error) {
+        console.error('Error deleting all exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف الإعلانات', 'error');
+      }
+    }
+
+    // ربط الدوال بالنافذة العامة
+    window.toggleSelectAll = toggleSelectAll;
+    window.updateSelectedCount = updateSelectedCount;
+    window.deleteSelectedExchanges = deleteSelectedExchanges;
+    window.deleteAllMyExchanges = deleteAllMyExchanges;
     window.showExchangeOption = showExchangeOption;
     window.loadExistingBooks = loadExistingBooks;
-    
+
     // وظيفة إعادة تحميل التطبيق بالكامل
     function refreshApp() {
       try {
@@ -4496,7 +4616,6 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     window.createFirstAdmin = createFirstAdmin;
 
     // Book Exchange Feature
-    let currentExchangeType = 'all';
     let currentExchangeLevel = null;
     let editingExchangeId = null;
     
@@ -5545,6 +5664,16 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       currentExchangeType = tabType;
       currentExchangeLevel = null; // إعادة تعيين المستوى المختار
       
+      // إظهار/إخفاء حاوي الإجراءات المجمعة
+      const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+      if (bulkActionsContainer) {
+        if (tabType === 'my') {
+          bulkActionsContainer.style.display = 'block';
+        } else {
+          bulkActionsContainer.style.display = 'none';
+        }
+      }
+      
       // تحديث التبويب النشط
       const tabs = document.querySelectorAll('.exchange-tab');
       tabs.forEach(tab => {
@@ -5867,6 +5996,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           card.className = `exchange-card ${exchange.type}`;
 
           card.innerHTML = `
+            ${isOwner && currentExchangeType === 'my' ? `<div class="exchange-checkbox-container"><input type="checkbox" class="exchange-checkbox" data-exchange-id="${exchangeId}" onchange="updateSelectedCount()"></div>` : ''}
             <div class="exchange-type ${exchange.type}">${exchange.type === 'offer' ? 'عرض' : 'طلب'}</div>
             <div class="exchange-book-title">
               ${exchange.bookName}
