@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>إدارة الكتب الدراسية</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #63b3ed 100%); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+    <div style="text-align: center; color: white;">
+      <div style="font-size: 3em; margin-bottom: 20px;">📚</div>
+      <h2>تطبيق الكتب الدراسية</h2>
+      <div id="loading-status" style="margin-top: 20px;">جاري التحميل...</div>
+      <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">جاري التحقق من حالة تسجيل الدخول</div>
+    </div>
+  </div>
+
+  <!-- Login Page (shown when not authenticated) -->
+  <div id="login-page" style="display: none;">
+    <div style="max-width: 400px; margin: 100px auto; padding: 40px; background: #fff; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+      <h1 style="text-align: center; color: #667eea; margin-bottom: 30px;">تطبيق الكتب الدراسية</h1>
+      <h3 style="text-align: center; color: #4a5568; margin-bottom: 30px;">تسجيل الدخول</h3>
+      
+      <form class="auth-form" id="mainLoginForm">
+        <input type="email" class="auth-input" id="mainLoginEmail" placeholder="البريد الإلكتروني" required>
+        <input type="password" class="auth-input" id="mainLoginPassword" placeholder="كلمة المرور" required>
+        <button type="submit" class="auth-submit-btn">دخول</button>
+        
+        <div style="text-align: center; margin-top: 20px;">
+          <div class="auth-link" onclick="showRegisterModal()">ليس لديك حساب؟ سجل الآن</div>
+          <div class="auth-link" onclick="showForgotPassword()">نسيت كلمة المرور؟</div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App (shown when authenticated) -->
+  <div id="main-app" style="display: none;">
+    <!-- Sidebar Toggle Button -->
+    <button id="sidebar-toggle" style="position: fixed; top: 20px; right: 20px; z-index: 1003; background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; box-shadow: 0 4px 12px rgba(159, 122, 234, 0.3); transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; font-size: 1.2em;">
+      ☰
+      <!-- Badge for total notifications and messages -->
+      <span id="sidebar-toggle-badge" style="position: absolute; top: -5px; left: -5px; background: #e53e3e; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7em; font-weight: bold; display: none; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">0</span>
+    </button>
+
+    <!-- Sidebar -->
+    <div id="sidebar" style="position: fixed; top: 0; right: -350px; width: 350px; height: 100vh; background: white; box-shadow: -2px 0 15px rgba(0,0,0,0.1); z-index: 1002; transition: right 0.3s ease; overflow-y: auto; padding: 20px 0;">
+      <!-- User Info Section -->
+      <div id="sidebar-user-info" style="padding: 20px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+        <div style="font-size: 1.5em; margin-bottom: 10px; color: #667eea;">👤</div>
+        <div id="sidebar-user-name" style="color: #2d3748; font-weight: bold; font-size: 1.2em; margin-bottom: 5px;"></div>
+        <span id="sidebar-welcome-text" style="color: #667eea; font-weight: bold; font-size: 1.1em;"></span>
+      </div>
+
+      <!-- Connection Status -->
+      <div style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0;">
+        <div id="sidebar-connectionStatus" style="display: flex; align-items: center; justify-content: center; background-color: #f7fafc; padding: 8px 15px; border-radius: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+          <span id="sidebar-connectionStatusDot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #4caf50; margin-left: 10px;"></span>
+          <span id="sidebar-connectionStatusText" style="font-size: 0.9em; font-weight: 600;">متصل</span>
+        </div>
+      </div>
+
+      <!-- Main Actions -->
+      <div style="padding: 20px;">
+        <button id="sidebar-refreshAppBtn" class="sidebar-btn" onclick="refreshApp()" title="تحديث البيانات">
+          <span>🔄</span>
+          <span>تحديث البيانات</span>
+        </button>
+        
+        <!-- Notifications -->
+        <div class="sidebar-notifications-container" style="position: relative;">
+          <button id="sidebar-notificationsBtn" class="sidebar-btn" title="الإشعارات">
+            <span>🔔</span>
+            <span>الإشعارات</span>
+            <span id="sidebar-notificationsBadge" class="sidebar-badge" style="display: none;">0</span>
+          </button>
+          <!-- Notifications Dropdown -->
+          <div id="sidebar-notificationsDropdown" class="notifications-dropdown" style="display: none; position: absolute; top: 100%; right: 0; width: 320px; max-height: 400px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; overflow: hidden;">
+            <div style="padding: 15px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: #2d3748; font-size: 1.1em;">الإشعارات</h3>
+                <button onclick="clearAllNotifications()" style="background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">مسح الكل</button>
+              </div>
+            </div>
+            <div id="sidebar-notificationsList" style="max-height: 300px; overflow-y: auto;"></div>
+            <div id="sidebar-notificationsLoadMore" style="padding: 10px; text-align: center; border-top: 1px solid #e2e8f0; display: none;">
+              <button onclick="loadMoreNotifications()" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">تحميل المزيد</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="sidebar-notifications-container" style="position: relative;">
+          <button id="sidebar-messagesBtn" class="sidebar-btn" title="الرسائل الإدارية">
+            <span>📧</span>
+            <span>الرسائل الإدارية</span>
+            <span id="sidebar-messagesBadge" class="sidebar-badge" style="display: none;">0</span>
+          </button>
+          <!-- Messages Dropdown -->
+          <div id="sidebar-messagesDropdown" class="notifications-dropdown" style="display: none; position: absolute; top: 100%; right: 0; width: 320px; max-height: 400px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; overflow: hidden;">
+            <div style="padding: 15px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: #2d3748; font-size: 1.1em;">الرسائل الإدارية</h3>
+                <button onclick="clearAllMessages()" style="background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">مسح الكل</button>
+              </div>
+            </div>
+            <div id="sidebar-messagesList" style="max-height: 300px; overflow-y: auto;"></div>
+            <div id="sidebar-messagesLoadMore" style="padding: 10px; text-align: center; border-top: 1px solid #e2e8f0; display: none;">
+              <button onclick="loadMoreMessages()" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">تحميل المزيد</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="sidebar-btn" id="sidebar-levelsSettingsBtn" title="إعدادات المستويات الدراسية">
+          <span>⚙️</span>
+          <span>إعدادات المستويات</span>
+        </button>
+        
+        <button class="sidebar-btn" id="sidebar-adminMessageBtn" title="إرسال رسالة للمستخدمين" style="display: none;">
+          <span>📢</span>
+          <span>رسالة للمستخدمين</span>
+        </button>
+        
+        <button class="sidebar-btn" id="sidebar-contactAdminBtn" title="راسل الإدارة">
+          <span>📞</span>
+          <span>راسل الإدارة</span>
+        </button>
+        
+        <button class="sidebar-btn" id="sidebar-accountSettingsBtn" title="إعدادات الحساب">
+          <span>👤</span>
+          <span>إعدادات الحساب</span>
+        </button>
+
+        <!-- Admin Panel Button (Admin Only) -->
+        <button class="sidebar-btn" id="sidebar-adminPanelBtn" title="لوحة الإدارة" style="display: none;">
+          <span>🛠️</span>
+          <span>لوحة الإدارة</span>
+        </button>
+
+        <!-- Archive Button (Admin Only) -->
+        <button class="sidebar-btn" id="sidebar-archiveBtn" title="أرشيف العمليات" style="display: none;">
+          <span>📋</span>
+          <span>أرشيف العمليات</span>
+        </button>
+
+
+
+        <!-- Backup & Restore Buttons (Admin Only) -->
+        <button class="sidebar-btn" id="sidebar-backupBtn" title="نسخ احتياطي" style="display: none;">
+          <span>💾</span>
+          <span>نسخ احتياطي</span>
+        </button>
+
+        <button class="sidebar-btn" id="sidebar-restoreBtn" title="استعادة البيانات" style="display: none;">
+          <span>📥</span>
+          <span>استعادة البيانات</span>
+        </button>
+
+        <!-- Export/Import Buttons (Admin Only) -->
+        <button class="sidebar-btn" id="sidebar-exportBtn" title="تصدير البيانات" style="display: none;">
+          <span>📤</span>
+          <span>تصدير البيانات</span>
+        </button>
+
+        <button class="sidebar-btn" id="sidebar-importBtn" title="استيراد البيانات" style="display: none;">
+          <span>📥</span>
+          <span>استيراد البيانات</span>
+        </button>
+        
+        <!-- Logout Button - Always at bottom -->
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <button class="sidebar-btn" id="sidebar-logoutBtn" title="تسجيل الخروج" style="background-color: #e53e3e; color: white;">
+            <span>🚪</span>
+            <span>تسجيل الخروج</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s ease;"></div>
+    
+    <div class="levels-list" id="levelsList" style="margin-top: 80px;"></div>
+    <div class="section-header">
+      <h2>الكتب المختارة</h2>
+      <button class="clear-all-btn" onclick="clearAllChosenBooks()" title="مسح جميع الكتب المختارة">🗑️ مسح الكل</button>
+    </div>
+    <div id="chosenBooksTables"></div>
+    <button class="export-btn" onclick="exportPDF()">تصدير PDF</button>
+    
+    <!-- Book Exchange Section -->
+    <div class="exchange-section">
+      <div class="exchange-header">
+        <h2>تبادل الكتب</h2>
+        <div class="exchange-buttons">
+          <button class="exchange-btn offer" onclick="showExchangeForm('offer')">عرض كتاب للبيع 📚</button>
+          <button class="exchange-btn request" onclick="showExchangeForm('request')">طلب كتاب للشراء 🔍</button>
+        </div>
+      </div>
+      
+      <div class="exchange-tabs">
+        <div class="exchange-tab" onclick="switchExchangeTab('offers')">كتب معروضة للبيع <span id="offersCount" class="exchange-count-badge">0</span></div>
+        <div class="exchange-tab" onclick="switchExchangeTab('requests')">كتب مطلوبة للشراء <span id="requestsCount" class="exchange-count-badge">0</span></div>
+        <div class="exchange-tab active" onclick="switchExchangeTab('my')">إعلاناتي</div>
+      </div>
+      
+      <!-- Search Interface -->
+      <div id="exchangeSearchSection" class="exchange-search-section" style="display: none;">
+        <div class="exchange-search-container">
+          <div class="search-input-group">
+            <input type="text" id="exchangeSearchInput" placeholder="ابحث عن كتاب..." class="exchange-search-input">
+            <select id="exchangeLevelSelect" class="exchange-level-select">
+              <option value="">جميع المستويات</option>
+            </select>
+            <button onclick="performExchangeSearch()" class="exchange-search-btn">🔍 بحث</button>
+            <button onclick="clearExchangeSearch()" class="exchange-clear-btn">🗑️ مسح</button>
+          </div>
+          <div id="exchangeSearchResults" class="exchange-search-results"></div>
+          <div id="exchangeSearchSuggestions" class="exchange-search-suggestions"></div>
+        </div>
+      </div>
+      
+      <div id="exchangeLevelsFilter" class="exchange-levels-filter" style="display: none; margin: 20px 0;">
+        <div style="font-weight: bold; margin-bottom: 10px;">تصفية حسب المستوى:</div>
+        <div id="exchangeLevelsList" class="exchange-levels-list">
+          <!-- سيتم ملء قائمة المستويات ديناميكياً -->
+        </div>
+      </div>
+      
+      <div id="exchangeListings" class="exchange-listings">
+        <!-- Exchange listings will be displayed here -->
+        <div class="exchange-empty">لا توجد إعلانات حالياً</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal" id="booksModal">
+    <div class="modal-content" id="booksModalContent"></div>
+  </div>
+  <div class="modal" id="settingsModal">
+    <div class="modal-content settings-modal-content" id="settingsModalContent"></div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeRegisterModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إنشاء حساب جديد</h3>
+      <form class="auth-form" id="registerForm">
+        <input type="text" class="auth-input" id="registerName" placeholder="اسم المكتبة" required>
+        <input type="email" class="auth-input" id="registerEmail" placeholder="البريد الإلكتروني" required>
+        <input type="tel" class="auth-input" id="registerPhone" placeholder="رقم الهاتف" required>
+        <input type="password" class="auth-input" id="registerPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" required minlength="6">
+        <button type="submit" class="auth-submit-btn">إنشاء حساب</button>
+        <div class="auth-link" onclick="closeRegisterModal()">لديك حساب بالفعل؟ سجل دخولك</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div class="modal" id="forgotPasswordModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeForgotPasswordModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">استعادة كلمة المرور</h3>
+      <form class="auth-form" id="forgotPasswordForm">
+        <input type="email" class="auth-input" id="forgotEmail" placeholder="البريد الإلكتروني" required>
+        <button type="submit" class="auth-submit-btn">إرسال رابط الاستعادة</button>
+        <div class="auth-link" onclick="closeForgotPasswordModal()">العودة لتسجيل الدخول</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Panel Modal -->
+  <div class="modal" id="adminModal">
+    <div class="modal-content" style="max-width: 90vw; width: 800px;">
+      <span class="close-btn" onclick="closeAdminModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">لوحة إدارة المستخدمين</h3>
+      <div id="adminContent"></div>
+    </div>
+  </div>
+  
+  <!-- Account Settings Modal -->
+  <div class="modal" id="accountSettingsModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeAccountSettingsModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إعدادات الحساب الشخصي</h3>
+      <div id="accountSettingsContent">
+        <form id="accountSettingsForm" class="auth-form">
+          <div class="exchange-form-group">
+            <label class="exchange-form-label" for="accountName">الاسم الكامل</label>
+            <input type="text" class="exchange-form-input" id="accountName" placeholder="أدخل اسمك الكامل">
+          </div>
+          <div class="exchange-form-group">
+            <label class="exchange-form-label" for="accountEmail">البريد الإلكتروني</label>
+            <input type="email" class="exchange-form-input" id="accountEmail" placeholder="البريد الإلكتروني" disabled>
+          </div>
+          <div class="exchange-form-group">
+            <label class="exchange-form-label" for="accountPhone">رقم الهاتف</label>
+            <input type="tel" class="exchange-form-input" id="accountPhone" placeholder="رقم الهاتف">
+          </div>
+          <div class="exchange-form-actions">
+            <button type="submit" class="exchange-form-submit">حفظ التغييرات</button>
+          </div>
+        </form>
+        
+        <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+          <h4 style="color:#4a5568; margin-bottom: 15px;">تغيير كلمة المرور</h4>
+          <form id="passwordChangeForm" class="auth-form">
+            <div class="exchange-form-group">
+              <label class="exchange-form-label" for="currentPassword">كلمة المرور الحالية</label>
+              <input type="password" class="exchange-form-input" id="currentPassword" placeholder="كلمة المرور الحالية" required>
+            </div>
+            <div class="exchange-form-group">
+              <label class="exchange-form-label" for="newPassword">كلمة المرور الجديدة</label>
+              <input type="password" class="exchange-form-input" id="newPassword" placeholder="كلمة المرور الجديدة" required minlength="6">
+            </div>
+            <div class="exchange-form-group">
+              <label class="exchange-form-label" for="confirmPassword">تأكيد كلمة المرور الجديدة</label>
+              <input type="password" class="exchange-form-input" id="confirmPassword" placeholder="تأكيد كلمة المرور الجديدة" required minlength="6">
+            </div>
+            <div class="exchange-form-actions">
+              <button type="submit" class="exchange-form-submit">تغيير كلمة المرور</button>
+            </div>
+          </form>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- Levels Settings Modal -->
+  <div class="modal" id="levelsSettingsModal">
+    <div class="modal-content settings-modal-content" id="levelsSettingsModalContent">
+      <span class="close-btn" onclick="closeLevelsSettingsModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إعدادات المستويات الدراسية</h3>
+      <div id="levelsSettingsList"></div>
+      <button class="add-level-btn" id="addLevelSettingsBtn">➕ إضافة مستوى دراسي</button>
+      
+      <!-- تم إزالة قسم النسخ الاحتياطي القديم واستبداله بالنسخ الاحتياطي الخاص بالمدير -->
+      <input type="file" id="json-import-input" style="display:none" accept=".json">
+    </div>
+  </div>
+  
+  <!-- Archive Modal -->
+  <div class="modal" id="archiveModal">
+    <div class="modal-content" style="max-width: 90vw; width: 900px;">
+      <span class="close-btn" onclick="closeArchiveModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">أرشيف العمليات</h3>
+      
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
+          <button class="auth-btn" id="allOperationsBtn" onclick="filterArchive('all')">الكل</button>
+          <button class="auth-btn" id="levelsOperationsBtn" onclick="filterArchive('levels')">المستويات</button>
+          <button class="auth-btn" id="booksOperationsBtn" onclick="filterArchive('books')">الكتب</button>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button class="auth-btn" id="addOperationsBtn" onclick="filterArchiveByAction('add')">إضافة</button>
+          <button class="auth-btn" id="editOperationsBtn" onclick="filterArchiveByAction('edit')">تعديل</button>
+          <button class="auth-btn" id="deleteOperationsBtn" onclick="filterArchiveByAction('delete')">حذف</button>
+        </div>
+        
+        <div style="display: flex; justify-content: center; margin-top: 15px;">
+          <button onclick="deleteAllArchiveOperations()" 
+                  style="background-color: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;"
+                  onmouseover="this.style.backgroundColor='#b91c1c'" 
+                  onmouseout="this.style.backgroundColor='#dc2626'">
+            حذف جميع العمليات المعروضة
+          </button>
+        </div>
+      </div>
+      
+      <div id="archiveContent" style="max-height: 500px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #4a5568; color: white;">
+              <th style="padding: 10px; text-align: center;">التاريخ</th>
+              <th style="padding: 10px; text-align: center;">العملية</th>
+              <th style="padding: 10px; text-align: center;">النوع</th>
+              <th style="padding: 10px; text-align: center;">التفاصيل</th>
+              <th style="padding: 10px; text-align: center;">المستخدم</th>
+              <th style="padding: 10px; text-align: center;">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="archiveTableBody">
+            <!-- سيتم ملء البيانات ديناميكياً -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notification Detail Modal -->
+  <div id="notificationDetailModal" class="notification-detail-modal">
+    <div class="notification-detail-content">
+      <button class="notification-detail-close" onclick="closeNotificationDetail()">&times;</button>
+      <div id="notificationDetailTitle" class="notification-detail-title"></div>
+      <div id="notificationDetailMessage" class="notification-detail-message"></div>
+      <div id="notificationDetailInfo" class="notification-detail-info" style="display: none;"></div>
+    </div>
+  </div>
+  
+  <!-- Contact Admin Modal -->
+  <div class="modal" id="contactAdminModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeContactAdminModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">راسل الإدارة</h3>
+      <form id="contactAdminForm" class="auth-form">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="contactAdminTitle">عنوان الرسالة</label>
+          <input type="text" class="exchange-form-input" id="contactAdminTitle" placeholder="أدخل عنوان الرسالة" required>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="contactAdminMessage">محتوى الرسالة</label>
+          <textarea class="exchange-form-input" id="contactAdminMessage" placeholder="أدخل محتوى الرسالة" rows="5" required style="resize: vertical; min-height: 120px;"></textarea>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="button" class="exchange-form-cancel" onclick="closeContactAdminModal()">إلغاء</button>
+          <button type="submit" class="exchange-form-submit">إرسال الرسالة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Message Modal -->
+  <div class="modal" id="adminMessageModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeAdminMessageModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إرسال رسالة للمستخدمين</h3>
+      <form id="adminMessageForm" class="auth-form">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="adminMessageTitle">عنوان الرسالة</label>
+          <input type="text" class="exchange-form-input" id="adminMessageTitle" placeholder="أدخل عنوان الرسالة" required>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="adminMessageContent">محتوى الرسالة</label>
+          <textarea class="exchange-form-input" id="adminMessageContent" placeholder="أدخل محتوى الرسالة" rows="5" required style="resize: vertical; min-height: 120px;"></textarea>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label">نوع الإرسال</label>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; color: #4a5568;">
+              <input type="radio" name="messageType" value="all" id="messageTypeAll" checked style="transform: scale(1.2);">
+              إرسال لجميع المستخدمين
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; color: #4a5568;">
+              <input type="radio" name="messageType" value="specific" id="messageTypeSpecific" style="transform: scale(1.2);">
+              إرسال لمستخدمين محددين
+            </label>
+          </div>
+        </div>
+        <div class="exchange-form-group" id="specificUsersGroup" style="display: none;">
+          <label class="exchange-form-label">اختيار المستخدمين</label>
+          <div class="user-search-container" style="margin-bottom: 15px;">
+            <input type="text" id="userSearchInput" placeholder="ابحث عن مستخدم بالاسم..." class="exchange-form-input" style="margin-bottom: 10px;">
+            <div id="userSearchSuggestions" class="user-search-suggestions"></div>
+          </div>
+          <div id="usersList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;">
+            <div style="text-align: center; color: #718096;">جاري تحميل المستخدمين...</div>
+          </div>
+          <div style="margin-top: 10px; font-size: 0.9em; color: #718096;">
+            <span id="selectedUsersCount">0</span> مستخدم محدد
+          </div>
+        </div>
+        <div class="exchange-form-group">
+          <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; color: #4a5568;">
+            <input type="checkbox" id="adminMessageUrgent" style="transform: scale(1.2);">
+            رسالة عاجلة (ستظهر فوراً لجميع المستخدمين المتصلين)
+          </label>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="button" class="exchange-form-cancel" onclick="closeAdminMessageModal()">إلغاء</button>
+          <button type="submit" class="exchange-form-submit">إرسال الرسالة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Admin Message Display Modal -->
+  <div id="adminMessageDisplayModal" class="notification-detail-modal" style="z-index: 10002;">
+    <div class="notification-detail-content" style="max-width: 600px; border: 3px solid #667eea;">
+      <button class="notification-detail-close" onclick="closeAdminMessageDisplay()">&times;</button>
+      <div style="text-align: center; margin-bottom: 15px;">
+        <span style="background: linear-gradient(135deg, #667eea 0%, #63b3ed 100%); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em; font-weight: 600;">📢 رسالة من الإدارة</span>
+      </div>
+      <div id="adminMessageDisplayTitle" class="notification-detail-title" style="color: #667eea; text-align: center;"></div>
+      <div id="adminMessageDisplayContent" class="notification-detail-message" style="text-align: center; font-size: 1.1em; line-height: 1.6;"></div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button onclick="closeAdminMessageDisplay()" style="background: linear-gradient(135deg, #667eea 0%, #63b3ed 100%); color: white; border: none; padding: 10px 25px; border-radius: 8px; font-weight: 600; cursor: pointer;">خروج</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Book Exchange Modal -->
+  <div class="modal" id="exchangeModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeExchangeModal()">&times;</span>
+      <h3 id="exchangeModalTitle" style="color:#667eea; text-align: center;">عرض كتاب</h3>
+      
+      <!-- خيارات إضافة الكتاب -->
+      <div id="exchangeOptions" class="exchange-form-group" style="margin-bottom: 25px; text-align: center;">
+        <button type="button" class="exchange-btn" onclick="showExchangeOption('new')" id="newBookOption">كتابة اسم كتاب جديد</button>
+        <button type="button" class="exchange-btn" onclick="showExchangeOption('existing')" id="existingBookOption">اختيار من الكتب الموجودة</button>
+      </div>
+      
+      <!-- نموذج إضافة كتاب جديد -->
+      <form id="exchangeFormNew" class="auth-form" style="display: none;">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeBookName">اسم الكتاب</label>
+          <input type="text" class="exchange-form-input" id="exchangeBookName" placeholder="أدخل اسم الكتاب" required>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeBookLevel">المستوى الدراسي</label>
+          <select class="exchange-form-input" id="exchangeBookLevel" required>
+            <option value="">-- اختر المستوى --</option>
+            <!-- سيتم ملء الخيارات ديناميكياً -->
+          </select>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeBookImage">صورة الكتاب (اختيارية)</label>
+          <input type="file" class="exchange-form-input" id="exchangeBookImage" accept="image/*" onchange="previewExchangeBookImage(this)">
+          <div id="exchangeBookImagePreview" style="margin-top: 10px; text-align: center; display: none;">
+            <img id="exchangeBookImagePreviewImg" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 2px solid #e2e8f0;">
+            <div style="margin-top: 5px;">
+              <button type="button" onclick="removeExchangeBookImage()" style="background: #fc8181; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">إزالة الصورة</button>
+            </div>
+          </div>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" id="exchangeCountLabelNew" for="exchangeBookCountNew">عدد الكتب المتاحة</label>
+          <input type="number" class="exchange-form-input" id="exchangeBookCountNew" min="1" value="1" required>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="button" class="exchange-form-cancel" onclick="closeExchangeModal()">إلغاء</button>
+          <button type="submit" class="exchange-form-submit">تأكيد</button>
+        </div>
+      </form>
+      
+      <!-- نموذج اختيار كتاب موجود -->
+      <form id="exchangeFormExisting" class="auth-form" style="display: none;">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeExistingLevel">المستوى الدراسي</label>
+          <select class="exchange-form-input" id="exchangeExistingLevel" onchange="loadExistingBooks()" required>
+            <option value="">-- اختر المستوى --</option>
+            <!-- سيتم ملء الخيارات ديناميكياً -->
+          </select>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="exchangeExistingBook">اختر الكتاب</label>
+          <select class="exchange-form-input" id="exchangeExistingBook" required>
+            <option value="">-- اختر الكتاب --</option>
+            <!-- سيتم ملء الخيارات ديناميكياً بعد اختيار المستوى -->
+          </select>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" id="exchangeCountLabelExisting" for="exchangeBookCountExisting">عدد الكتب المتاحة</label>
+          <input type="number" class="exchange-form-input" id="exchangeBookCountExisting" min="1" value="1" required>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="button" class="exchange-form-cancel" onclick="closeExchangeModal()">إلغاء</button>
+          <button type="submit" class="exchange-form-submit">تأكيد</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Book Modal -->
+  <div class="modal" id="addBookModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeAddBookModal()">&times;</span>
+      <h3 style="color:#667eea; text-align: center;">إضافة كتاب جديد</h3>
+      <form id="addBookForm" class="auth-form">
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="bookName">اسم الكتاب</label>
+          <input type="text" class="exchange-form-input" id="bookName" placeholder="أدخل اسم الكتاب" required>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label" for="bookImage">صورة الكتاب (اختياري - أقل من 1MB)</label>
+          <input type="file" class="exchange-form-input" id="bookImage" accept="image/*" onchange="previewBookImage(this)">
+          <div id="imagePreview" style="margin-top: 10px; text-align: center; display: none;">
+            <img id="previewImg" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #e2e8f0;">
+          </div>
+        </div>
+        <div class="exchange-form-actions">
+          <button type="submit" class="exchange-form-submit">إضافة الكتاب</button>
+          <button type="button" class="exchange-form-cancel" onclick="closeAddBookModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <div class="image-modal-content" onclick="event.stopPropagation()">
+      <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+      <h3 id="imageModalTitle" class="image-modal-title"></h3>
+      <img id="imageModalImg" class="image-modal-img">
+    </div>
+  </div>
+
+  <div id="connection-status"></div>
+
+  <!-- Firebase SDKs (using stable version 9.23.0) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <!-- تحميل إعدادات Firebase من ملف منفصل -->
+  <script src="config.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
