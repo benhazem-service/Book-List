@@ -400,8 +400,17 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             await addToArchive('edit', 'book_image', `تعديل صورة الكتاب "${bookName}" من المستوى "${levels[levelIndex].name}"`);
           }
           
+          // تحديث جميع الإعلانات المرتبطة بهذا الكتاب
+          await updateExchangeImageUrls(bookName, levels[levelIndex].name, newImageUrl);
+          
           showTemporaryAlert('تم تحديث الصورة بنجاح', 'success');
           renderBooksList();
+          
+          // إعادة تحميل الإعلانات لعرض الصورة المحدثة
+          if (typeof loadExchangeListings === 'function') {
+            loadExchangeListings(currentExchangeType);
+          }
+          
           modal.remove();
         } catch (error) {
           console.error('Error updating image:', error);
@@ -4513,19 +4522,63 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       const level = levels.find(l => l.name === levelName);
       if (!level) return false;
       
-      // التحقق من bookImages
-      if (level.bookImages && level.bookImages[bookName] === imageUrl) {
+      // التحقق من وجود الصورة في booksWithImages
+      if (level.booksWithImages && level.booksWithImages[bookName] === imageUrl) {
         return true;
       }
       
-      // التحقق من booksWithImages
-      if (level.booksWithImages && level.booksWithImages[bookName] === imageUrl) {
+      // التحقق من وجود الصورة في bookImages
+      if (level.bookImages && level.bookImages[bookName] === imageUrl) {
         return true;
       }
       
       return false;
     }
-    
+
+    // دالة تحديث صور الإعلانات عند تعديل صورة كتاب في القائمة الرسمية
+    async function updateExchangeImageUrls(bookName, levelName, newImageUrl) {
+      try {
+        // البحث عن جميع الإعلانات التي تحتوي على هذا الكتاب والمستوى
+        const exchangesQuery = await exchangeCollection
+          .where('bookName', '==', bookName)
+          .where('bookLevel', '==', levelName)
+          .get();
+        
+        if (exchangesQuery.empty) {
+          console.log('لا توجد إعلانات مرتبطة بهذا الكتاب');
+          return;
+        }
+        
+        // تحديث كل إعلان
+        const batch = firebase.firestore().batch();
+        let updatedCount = 0;
+        
+        exchangesQuery.forEach(doc => {
+          const exchangeData = doc.data();
+          
+          // تحديث رابط الصورة فقط إذا كان الإعلان لا يحتوي على صورة خاصة به
+          // أو إذا كانت صورته تطابق الصورة القديمة من القائمة الرسمية
+          if (!exchangeData.bookImageUrl || 
+              (exchangeData.bookImageUrl && isImageInOfficialBooks(bookName, levelName, exchangeData.bookImageUrl))) {
+            
+            batch.update(doc.ref, {
+              bookImageUrl: newImageUrl,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            updatedCount++;
+          }
+        });
+        
+        if (updatedCount > 0) {
+          await batch.commit();
+          console.log(`تم تحديث ${updatedCount} إعلان بالصورة الجديدة`);
+        }
+        
+      } catch (error) {
+        console.error('خطأ في تحديث صور الإعلانات:', error);
+      }
+    }
+
     // دالة تنظيف الإعلانات المنتهية الصلاحية
     async function cleanupExpiredExchanges() {
       try {
@@ -4674,6 +4727,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     window.adminToggleSelectAll = adminToggleSelectAll;
     window.adminUpdateSelectedCount = adminUpdateSelectedCount;
     window.adminDeleteSelectedExchanges = adminDeleteSelectedExchanges;
+    window.updateExchangeImageUrls = updateExchangeImageUrls;
     window.isImageInOfficialBooks = isImageInOfficialBooks;
     window.cleanupExpiredExchanges = cleanupExpiredExchanges;
     window.showExchangeOption = showExchangeOption;
@@ -6157,15 +6211,27 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             exchangeDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           }
           
-          // البحث عن صورة الكتاب - أولاً من بيانات الإعلان، ثم من المستوى
-          let bookImageUrl = exchange.bookImageUrl || null;
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
           
-          // إذا لم توجد صورة في الإعلان، ابحث في بيانات المستوى
-          if (!bookImageUrl && exchange.bookLevel && exchange.bookName) {
+          // البحث في بيانات المستوى أولاً للحصول على أحدث صورة
+          if (exchange.bookLevel && exchange.bookName) {
             const level = levels.find(l => l.name === exchange.bookLevel);
-            if (level && level.bookImages && level.bookImages[exchange.bookName]) {
-              bookImageUrl = level.bookImages[exchange.bookName];
+            if (level) {
+              // البحث في booksWithImages أولاً (الصور المحدثة)
+              if (level.booksWithImages && level.booksWithImages[exchange.bookName]) {
+                bookImageUrl = level.booksWithImages[exchange.bookName];
+              }
+              // إذا لم توجد، ابحث في bookImages (الصور القديمة)
+              else if (level.bookImages && level.bookImages[exchange.bookName]) {
+                bookImageUrl = level.bookImages[exchange.bookName];
+              }
             }
+          }
+          
+          // إذا لم توجد صورة في المستوى، استخدم صورة الإعلان (إن وجدت)
+          if (!bookImageUrl && exchange.bookImageUrl) {
+            bookImageUrl = exchange.bookImageUrl;
           }
           
 
