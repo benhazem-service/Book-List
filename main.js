@@ -312,7 +312,13 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
 
     // دالة عرض نافذة تعديل صورة الكتاب
     function showEditImageModal(bookName, levelIndex) {
-      const currentImageUrl = levels[levelIndex].booksWithImages[bookName];
+      // البحث عن رابط الصورة الحالي في كلا المكانين
+      let currentImageUrl = null;
+      if (levels[levelIndex].booksWithImages && levels[levelIndex].booksWithImages[bookName]) {
+        currentImageUrl = levels[levelIndex].booksWithImages[bookName];
+      } else if (levels[levelIndex].bookImages && levels[levelIndex].bookImages[bookName]) {
+        currentImageUrl = levels[levelIndex].bookImages[bookName];
+      }
       
       const modal = document.createElement('div');
       modal.className = 'image-modal';
@@ -394,8 +400,17 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             await addToArchive('edit', 'book_image', `تعديل صورة الكتاب "${bookName}" من المستوى "${levels[levelIndex].name}"`);
           }
           
+          // تحديث جميع الإعلانات المرتبطة بهذا الكتاب
+          await updateExchangeImageUrls(bookName, levels[levelIndex].name, newImageUrl);
+          
           showTemporaryAlert('تم تحديث الصورة بنجاح', 'success');
           renderBooksList();
+          
+          // إعادة تحميل الإعلانات لعرض الصورة المحدثة
+          if (typeof loadExchangeListings === 'function') {
+            loadExchangeListings(currentExchangeType);
+          }
+          
           modal.remove();
         } catch (error) {
           console.error('Error updating image:', error);
@@ -598,7 +613,15 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
          // أزرار إدارة الصور (للمديرين والمحررين)
          const hasEditPermission = isAdmin || (currentUser && currentUser.canEditContent);
          
+         // البحث عن صورة الكتاب في كلا المكانين
+         let bookImageUrl = null;
          if (currentLevel.booksWithImages && currentLevel.booksWithImages[book]) {
+           bookImageUrl = currentLevel.booksWithImages[book];
+         } else if (currentLevel.bookImages && currentLevel.bookImages[book]) {
+           bookImageUrl = currentLevel.bookImages[book];
+         }
+         
+         if (bookImageUrl) {
            // زر عرض الصورة
            const viewImageBtn = document.createElement('button');
            viewImageBtn.className = 'view-image-btn';
@@ -606,7 +629,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
            viewImageBtn.title = 'عرض صورة الكتاب';
            viewImageBtn.onclick = (e) => {
              e.stopPropagation();
-             showImageModal(currentLevel.booksWithImages[book], book);
+             showImageModal(bookImageUrl, book);
            };
            controlsDiv.appendChild(viewImageBtn);
            
@@ -1012,6 +1035,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         
         const title = document.getElementById('contactAdminTitle').value.trim();
         const message = document.getElementById('contactAdminMessage').value.trim();
+        const attachmentFile = document.getElementById('contactAdminAttachment').files[0];
         
         if (!title || !message) {
           showTemporaryAlert('يرجى ملء جميع الحقول', 'error');
@@ -1019,8 +1043,10 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         }
         
         try {
-          await sendMessageToAdmin(title, message);
-          showTemporaryAlert('تم إرسال الرسالة للإدارة بنجاح', 'success');
+          showTemporaryAlert('جاري إرسال الرسالة...', 'info');
+          await sendMessageToAdmin(title, message, attachmentFile);
+          const attachmentText = attachmentFile ? ' مع مرفق' : '';
+          showTemporaryAlert(`تم إرسال الرسالة${attachmentText} للإدارة بنجاح`, 'success');
           closeContactAdminModal();
         } catch (error) {
           console.error('Error sending message to admin:', error);
@@ -1033,10 +1059,11 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     function closeContactAdminModal() {
       document.getElementById('contactAdminModal').style.display = 'none';
       document.getElementById('contactAdminForm').reset();
+      document.getElementById('contactAttachmentPreview').style.display = 'none';
     }
     
     // إرسال رسالة للإدارة
-    async function sendMessageToAdmin(title, message) {
+    async function sendMessageToAdmin(title, message, attachmentFile = null) {
       if (!currentUser) return;
       
       // الحصول على بيانات المستخدم من Firestore للحصول على رقم الهاتف
@@ -1050,9 +1077,26 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         console.warn('Could not fetch user phone:', error);
       }
       
+      let attachmentData = null;
+      
+      // Upload attachment if provided
+      if (attachmentFile) {
+        const attachmentUrl = await uploadMessageAttachment(attachmentFile);
+        if (attachmentUrl) {
+          attachmentData = {
+            name: attachmentFile.name,
+            size: attachmentFile.size,
+            type: attachmentFile.type,
+            url: attachmentUrl,
+            isImage: attachmentFile.type.startsWith('image/')
+          };
+        }
+      }
+      
       const userMessage = {
         title: title,
         message: message,
+        attachment: attachmentData,
         fromUserId: currentUser.uid,
         fromUserName: currentUser.name || currentUser.displayName || currentUser.email,
         fromUserEmail: currentUser.email,
@@ -3622,6 +3666,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       const content = document.getElementById('adminMessageContent').value.trim();
       const isUrgent = document.getElementById('adminMessageUrgent').checked;
       const messageType = document.querySelector('input[name="messageType"]:checked').value;
+      const attachmentFile = document.getElementById('adminMessageAttachment').files[0];
       
       if (!title || !content) {
         showTemporaryAlert('يرجى ملء جميع الحقول المطلوبة', 'error');
@@ -3640,6 +3685,24 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
       
       try {
+        showTemporaryAlert('جاري إرسال الرسالة...', 'info');
+        
+        let attachmentData = null;
+        
+        // Upload attachment if provided
+        if (attachmentFile) {
+          const attachmentUrl = await uploadMessageAttachment(attachmentFile);
+          if (attachmentUrl) {
+            attachmentData = {
+              name: attachmentFile.name,
+              size: attachmentFile.size,
+              type: attachmentFile.type,
+              url: attachmentUrl,
+              isImage: attachmentFile.type.startsWith('image/')
+            };
+          }
+        }
+        
         // Create admin message document
         const messageData = {
           title: title,
@@ -3647,6 +3710,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           isUrgent: isUrgent,
           messageType: messageType,
           targetUsers: targetUsers, // null for all users, array of UIDs for specific users
+          attachment: attachmentData,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           createdBy: {
             uid: currentUser.uid,
@@ -3660,7 +3724,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         const messageId = messageDoc.id;
         
         const recipientText = messageType === 'all' ? 'جميع المستخدمين' : `${targetUsers.length} مستخدم محدد`;
-        showTemporaryAlert(`تم إرسال الرسالة بنجاح إلى ${recipientText}`, 'success');
+        const attachmentText = attachmentData ? ' مع مرفق' : '';
+        showTemporaryAlert(`تم إرسال الرسالة${attachmentText} بنجاح إلى ${recipientText}`, 'success');
         closeAdminMessageModal();
         
         // If urgent, show immediately to online users
@@ -3678,6 +3743,26 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     function showAdminMessageDisplay(message) {
       document.getElementById('adminMessageDisplayTitle').textContent = message.title;
       document.getElementById('adminMessageDisplayContent').textContent = message.content;
+      
+      // Handle attachment display
+      const attachmentDisplay = document.getElementById('adminMessageAttachmentDisplay');
+      if (message.attachment) {
+        document.getElementById('attachmentDisplayName').textContent = message.attachment.name;
+        document.getElementById('attachmentDisplaySize').textContent = formatFileSize(message.attachment.size);
+        document.getElementById('attachmentDisplayIcon').textContent = message.attachment.isImage ? '🖼️' : '📄';
+        
+        // Store attachment data for view/download functions
+        window.currentMessageAttachment = message.attachment;
+        
+        // Show/hide view button based on file type
+        const viewBtn = document.getElementById('viewAttachmentBtn');
+        viewBtn.style.display = message.attachment.isImage ? 'inline-block' : 'none';
+        
+        attachmentDisplay.style.display = 'block';
+      } else {
+        attachmentDisplay.style.display = 'none';
+      }
+      
       document.getElementById('adminMessageDisplayModal').style.display = 'flex';
       
       // Mark message as read
@@ -4123,6 +4208,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         ${additionalInfo}
       `;
       
+      // Handle attachment display in message detail
+      const attachmentDisplay = document.getElementById('messageAttachmentDisplay');
+      if (message.attachment) {
+        document.getElementById('messageAttachmentDisplayName').textContent = message.attachment.name;
+        document.getElementById('messageAttachmentDisplaySize').textContent = formatFileSize(message.attachment.size);
+        document.getElementById('messageAttachmentDisplayIcon').textContent = message.attachment.isImage ? '🖼️' : '📄';
+        
+        // Store attachment data for view/download functions
+        window.currentMessageAttachment = message.attachment;
+        
+        // Show/hide view button based on file type
+        const viewBtn = document.getElementById('viewMessageAttachmentBtn');
+        viewBtn.style.display = message.attachment.isImage ? 'inline-block' : 'none';
+        
+        attachmentDisplay.style.display = 'block';
+      } else {
+        attachmentDisplay.style.display = 'none';
+      }
+      
       // Mark message as read if it's a user-to-admin message
       if (isAdmin && message.type === 'user_to_admin' && !message.read) {
         markUserMessageAsRead(message.id);
@@ -4375,13 +4479,448 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     // تعريف وظيفة switchExchangeTab في النافذة العامة
     // نستخدم نفس الاسم للوظيفة الداخلية والعامة
     const originalSwitchExchangeTab = switchExchangeTab;
-    window.switchExchangeTab = async function(tabType) {
-      await originalSwitchExchangeTab(tabType);
+    window.switchExchangeTab = switchExchangeTab;
+
+    // متغير لتتبع نوع التبادل الحالي (تم نقله لأعلى لتجنب التكرار)
+    let currentExchangeType = 'my';
+
+    // دوال إدارة الحذف المجمع
+    function toggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('selectAllExchanges');
+      const exchangeCheckboxes = document.querySelectorAll('.exchange-checkbox');
+
+      exchangeCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const selectedCheckboxes = document.querySelectorAll('.exchange-checkbox:checked');
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      const selectedCountSpan = document.getElementById('selectedCount');
+
+      const count = selectedCheckboxes.length;
+      selectedCountSpan.textContent = `${count} محدد`;
+
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+      }
+    }
+
+    async function deleteSelectedExchanges() {
+      const selectedCheckboxes = document.querySelectorAll('.exchange-checkbox:checked');
+      const exchangeIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.exchangeId);
+
+      if (exchangeIds.length === 0) {
+        showTemporaryAlert('لم يتم تحديد أي إعلانات للحذف', 'error');
+        return;
+      }
+
+      const confirmMessage = `هل أنت متأكد من حذف ${exchangeIds.length} إعلان محدد؟`;
+      if (!confirm(confirmMessage)) return;
+
+      try {
+        showTemporaryAlert('جاري حذف الإعلانات المحددة...', 'info');
+
+        for (const exchangeId of exchangeIds) {
+          await exchangeCollection.doc(exchangeId).delete();
+          await deleteRelatedNotifications(exchangeId);
+        }
+
+        showTemporaryAlert(`تم حذف ${exchangeIds.length} إعلان بنجاح`, 'success');
+
+        // إعادة تعيين حالة التحديد
+        document.getElementById('selectAllExchanges').checked = false;
+        updateSelectedCount();
+
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+
+      } catch (error) {
+        console.error('Error deleting selected exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف بعض الإعلانات', 'error');
+      }
+    }
+
+    async function deleteAllMyExchanges() {
+      if (!currentUser) {
+        showTemporaryAlert('يجب تسجيل الدخول أولاً', 'error');
+        return;
+      }
+
+      const confirmMessage = 'هل أنت متأكد من حذف جميع إعلاناتك؟ هذا الإجراء لا يمكن التراجع عنه!';
+      if (!confirm(confirmMessage)) return;
+
+      try {
+        showTemporaryAlert('جاري حذف جميع إعلاناتك...', 'info');
+
+        // جلب جميع إعلانات المستخدم
+        const userExchanges = await exchangeCollection
+          .where('userId', '==', currentUser.uid)
+          .get();
+
+        if (userExchanges.empty) {
+          showTemporaryAlert('لا توجد إعلانات لحذفها', 'info');
+          return;
+        }
+
+        const batch = db.batch();
+        let deletedCount = 0;
+
+        for (const doc of userExchanges.docs) {
+          batch.delete(exchangeCollection.doc(doc.id));
+          await deleteRelatedNotifications(doc.id);
+          deletedCount++;
+        }
+
+        await batch.commit();
+
+        showTemporaryAlert(`تم حذف ${deletedCount} إعلان بنجاح`, 'success');
+
+        // إعادة تعيين حالة التحديد
+        document.getElementById('selectAllExchanges').checked = false;
+        updateSelectedCount();
+
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+
+      } catch (error) {
+        console.error('Error deleting all exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف الإعلانات', 'error');
+      }
+    }
+
+    // دالة للتحقق من وجود الصورة في قوائم الكتب الرسمية
+    function isImageInOfficialBooks(bookName, levelName, imageUrl) {
+      const level = levels.find(l => l.name === levelName);
+      if (!level) return false;
+      
+      // التحقق من وجود الصورة في booksWithImages
+      if (level.booksWithImages && level.booksWithImages[bookName] === imageUrl) {
+        return true;
+      }
+      
+      // التحقق من وجود الصورة في bookImages
+      if (level.bookImages && level.bookImages[bookName] === imageUrl) {
+        return true;
+      }
+      
+      return false;
+    }
+
+    // دالة تحديث صور الإعلانات عند تعديل صورة كتاب في القائمة الرسمية
+    async function updateExchangeImageUrls(bookName, levelName, newImageUrl) {
+      try {
+        // البحث عن جميع الإعلانات التي تحتوي على هذا الكتاب والمستوى
+        const exchangesQuery = await exchangeCollection
+          .where('bookName', '==', bookName)
+          .where('bookLevel', '==', levelName)
+          .get();
+        
+        if (exchangesQuery.empty) {
+          console.log('لا توجد إعلانات مرتبطة بهذا الكتاب');
+          return;
+        }
+        
+        // تحديث كل إعلان
+        const batch = firebase.firestore().batch();
+        let updatedCount = 0;
+        
+        exchangesQuery.forEach(doc => {
+          const exchangeData = doc.data();
+          
+          // تحديث رابط الصورة فقط إذا كان الإعلان لا يحتوي على صورة خاصة به
+          // أو إذا كانت صورته تطابق الصورة القديمة من القائمة الرسمية
+          if (!exchangeData.bookImageUrl || 
+              (exchangeData.bookImageUrl && isImageInOfficialBooks(bookName, levelName, exchangeData.bookImageUrl))) {
+            
+            batch.update(doc.ref, {
+              bookImageUrl: newImageUrl,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            updatedCount++;
+          }
+        });
+        
+        if (updatedCount > 0) {
+          await batch.commit();
+          console.log(`تم تحديث ${updatedCount} إعلان بالصورة الجديدة`);
+        }
+        
+      } catch (error) {
+        console.error('خطأ في تحديث صور الإعلانات:', error);
+      }
+    }
+
+    // دالة تنظيف الإعلانات المنتهية الصلاحية
+    async function cleanupExpiredExchanges() {
+      try {
+        const now = new Date();
+        const expiredExchanges = await exchangeCollection
+          .where('expiryDate', '<=', now)
+          .get();
+        
+        if (expiredExchanges.empty) {
+          return;
+        }
+        
+        const batch = db.batch();
+        let deletedCount = 0;
+        
+        for (const doc of expiredExchanges.docs) {
+          const exchangeData = doc.data();
+          
+          // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+          if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+            try {
+              const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+              await imageRef.delete();
+            } catch (imageError) {
+              console.log('تعذر حذف الصورة:', imageError);
+            }
+          }
+          
+          // حذف الإشعارات المرتبطة
+          await deleteRelatedNotifications(doc.id);
+          
+          // إضافة الإعلان للحذف المجمع
+          batch.delete(exchangeCollection.doc(doc.id));
+          deletedCount++;
+        }
+        
+        await batch.commit();
+        console.log(`تم حذف ${deletedCount} إعلان منتهي الصلاحية`);
+        
+        // تحديث الإحصائيات
+        await countExchangeStats();
+        
+      } catch (error) {
+        console.error('خطأ في تنظيف الإعلانات المنتهية الصلاحية:', error);
+      }
+    }
+    
+    // تشغيل تنظيف الإعلانات المنتهية الصلاحية كل ساعة
+    setInterval(cleanupExpiredExchanges, 60 * 60 * 1000); // كل ساعة
+    
+    // تشغيل التنظيف عند بدء التطبيق
+    setTimeout(cleanupExpiredExchanges, 5000); // بعد 5 ثوان من بدء التطبيق
+    
+    // دوال إدارة الحذف المجمع للأدمن
+    function adminToggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('adminSelectAllExchanges');
+      const exchangeCheckboxes = document.querySelectorAll('.admin-exchange-checkbox');
+      
+      exchangeCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+      
+      adminUpdateSelectedCount();
+    }
+    
+    function adminUpdateSelectedCount() {
+      const selectedCheckboxes = document.querySelectorAll('.admin-exchange-checkbox:checked');
+      const deleteSelectedBtn = document.getElementById('adminDeleteSelectedBtn');
+      const selectedCountSpan = document.getElementById('adminSelectedCount');
+      
+      const count = selectedCheckboxes.length;
+      selectedCountSpan.textContent = `${count} محدد`;
+      
+      if (count > 0) {
+        deleteSelectedBtn.disabled = false;
+        deleteSelectedBtn.style.opacity = '1';
+      } else {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.style.opacity = '0.5';
+      }
+    }
+    
+    async function adminDeleteSelectedExchanges() {
+      if (!isAdmin) {
+        showTemporaryAlert('ليس لديك صلاحية لحذف إعلانات المستخدمين', 'error');
+        return;
+      }
+      
+      const selectedCheckboxes = document.querySelectorAll('.admin-exchange-checkbox:checked');
+      const exchangeIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.exchangeId);
+      
+      if (exchangeIds.length === 0) {
+        showTemporaryAlert('لم يتم تحديد أي إعلانات للحذف', 'error');
+        return;
+      }
+      
+      const confirmMessage = `هل أنت متأكد من حذف ${exchangeIds.length} إعلان محدد؟ (بصلاحية المدير)`;
+      if (!confirm(confirmMessage)) return;
+      
+      try {
+        showTemporaryAlert('جاري حذف الإعلانات المحددة...', 'info');
+        
+        for (const exchangeId of exchangeIds) {
+          // جلب بيانات الإعلان قبل الحذف
+          const exchangeDoc = await exchangeCollection.doc(exchangeId).get();
+          if (exchangeDoc.exists) {
+            const exchangeData = exchangeDoc.data();
+            
+            // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+            if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+              try {
+                const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+                await imageRef.delete();
+              } catch (imageError) {
+                console.log('تعذر حذف الصورة:', imageError);
+              }
+            }
+          }
+          
+          await exchangeCollection.doc(exchangeId).delete();
+          await deleteRelatedNotifications(exchangeId);
+        }
+        
+        showTemporaryAlert(`تم حذف ${exchangeIds.length} إعلان بنجاح (بصلاحية المدير)`, 'success');
+        
+        // إعادة تعيين حالة التحديد
+        document.getElementById('adminSelectAllExchanges').checked = false;
+        adminUpdateSelectedCount();
+        
+        // تحديث الإحصائيات والعرض
+        await countExchangeStats();
+        loadExchangeListings(currentExchangeType);
+        
+      } catch (error) {
+        console.error('Error deleting selected exchanges:', error);
+        showTemporaryAlert('حدث خطأ في حذف بعض الإعلانات', 'error');
+      }
+    }
+    
+    // ربط الدوال بالنافذة العامة
+    window.toggleSelectAll = toggleSelectAll;
+    window.updateSelectedCount = updateSelectedCount;
+    window.deleteSelectedExchanges = deleteSelectedExchanges;
+    window.deleteAllMyExchanges = deleteAllMyExchanges;
+    window.adminToggleSelectAll = adminToggleSelectAll;
+    window.adminUpdateSelectedCount = adminUpdateSelectedCount;
+    window.adminDeleteSelectedExchanges = adminDeleteSelectedExchanges;
+    window.updateExchangeImageUrls = updateExchangeImageUrls;
+    window.isImageInOfficialBooks = isImageInOfficialBooks;
+    window.cleanupExpiredExchanges = cleanupExpiredExchanges;
+    
+    // Message attachment functions
+    async function uploadMessageAttachment(file) {
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        return null;
+      }
+      
+      const fileName = `messages/${Date.now()}_${file.name}`;
+      const storageRef = firebase.storage().ref().child(fileName);
+      const snapshot = await storageRef.put(file);
+      return await snapshot.ref.getDownloadURL();
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 بايت';
+      const k = 1024;
+      const sizes = ['بايت', 'كيلوبايت', 'ميجابايت'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function viewMessageAttachment() {
+      if (window.currentMessageAttachment && window.currentMessageAttachment.isImage) {
+        showImageModal(window.currentMessageAttachment.url, window.currentMessageAttachment.name);
+      }
+    }
+    
+    function downloadMessageAttachment() {
+      if (window.currentMessageAttachment) {
+        try {
+          showTemporaryAlert('جاري تحميل الملف...', 'info');
+          
+          // Create download link directly with Firebase Storage URL
+          const link = document.createElement('a');
+          link.href = window.currentMessageAttachment.url;
+          link.download = window.currentMessageAttachment.name;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          
+          // Trigger download
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          showTemporaryAlert('تم بدء تحميل الملف', 'success');
+        } catch (error) {
+          console.error('Error downloading file:', error);
+          showTemporaryAlert('حدث خطأ في تحميل الملف', 'error');
+        }
+      }
+    }
+    
+    function removeAttachment() {
+      document.getElementById('adminMessageAttachment').value = '';
+      document.getElementById('attachmentPreview').style.display = 'none';
+    }
+    
+    // Attachment preview handler
+    document.getElementById('adminMessageAttachment').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        this.value = '';
+        return;
+      }
+      
+      document.getElementById('attachmentName').textContent = file.name;
+      document.getElementById('attachmentSize').textContent = formatFileSize(file.size);
+      document.getElementById('attachmentIcon').textContent = file.type.startsWith('image/') ? '🖼️' : '📄';
+      document.getElementById('attachmentPreview').style.display = 'block';
     };
-    window.switchExchangeLevel = switchExchangeLevel;
+    
+    // Contact admin attachment preview handler
+    document.getElementById('contactAdminAttachment').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        this.value = '';
+        return;
+      }
+      
+      document.getElementById('contactAttachmentName').textContent = file.name;
+      document.getElementById('contactAttachmentSize').textContent = formatFileSize(file.size);
+      document.getElementById('contactAttachmentIcon').textContent = file.type.startsWith('image/') ? '🖼️' : '📄';
+      document.getElementById('contactAttachmentPreview').style.display = 'block';
+    };
+    
+    function removeContactAttachment() {
+      document.getElementById('contactAdminAttachment').value = '';
+      document.getElementById('contactAttachmentPreview').style.display = 'none';
+    }
+    
+    window.uploadMessageAttachment = uploadMessageAttachment;
+    window.viewMessageAttachment = viewMessageAttachment;
+    window.downloadMessageAttachment = downloadMessageAttachment;
+    window.removeAttachment = removeAttachment;
+    window.removeContactAttachment = removeContactAttachment;
     window.showExchangeOption = showExchangeOption;
     window.loadExistingBooks = loadExistingBooks;
-    
+
     // وظيفة إعادة تحميل التطبيق بالكامل
     function refreshApp() {
       try {
@@ -4482,7 +5021,6 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     window.createFirstAdmin = createFirstAdmin;
 
     // Book Exchange Feature
-    let currentExchangeType = 'all';
     let currentExchangeLevel = null;
     let editingExchangeId = null;
     
@@ -4916,10 +5454,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
-          // إضافة الكتاب إلى قائمة الكتب في المستوى إذا لم يكن موجوداً
-          if (bookImageUrl) {
-            await addBookToLevelIfNotExists(bookName, bookLevel, bookImageUrl);
-          }
+          // لا نضيف الكتاب إلى قائمة المستوى - الإعلانات منفصلة عن قوائم الكتب الرسمية
           
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
@@ -4964,8 +5499,15 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         let bookImageUrl = null;
         if (bookLevel && bookName) {
           const level = levels.find(l => l.name === bookLevel);
-          if (level && level.bookImages && level.bookImages[bookName]) {
-            bookImageUrl = level.bookImages[bookName];
+          if (level) {
+            // البحث في bookImages أولاً
+            if (level.bookImages && level.bookImages[bookName]) {
+              bookImageUrl = level.bookImages[bookName];
+            }
+            // إذا لم توجد، ابحث في booksWithImages
+            else if (level.booksWithImages && level.booksWithImages[bookName]) {
+              bookImageUrl = level.booksWithImages[bookName];
+            }
           }
         }
 
@@ -5007,13 +5549,20 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           }
           
           // تحديث الإعلان
-          await exchangeCollection.doc(editingExchangeId).update({
+          const updateData = {
             bookName: bookName,
             bookLevel: bookLevel,
             count: count,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             expiryDate: expiryDate
-          });
+          };
+          
+          // إضافة رابط الصورة إذا كان متوفراً
+          if (bookImageUrl) {
+            updateData.bookImageUrl = bookImageUrl;
+          }
+          
+          await exchangeCollection.doc(editingExchangeId).update(updateData);
           
           // رسالة نجاح مخصصة
           if (isAdmin && !isOwner) {
@@ -5032,6 +5581,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           // إنشاء إشعار للمستخدمين الآخرين (فقط للإعلانات الجديدة)
           await notifyNewExchange(exchangeDataWithId);
           
+          // لا نضيف الكتاب إلى قائمة المستوى - الإعلانات منفصلة عن قوائم الكتب الرسمية
+          
           showTemporaryAlert(`تم إضافة ${typeText} الكتاب بنجاح. سيبقى متاحاً حتى تاريخ ${expiryDateFormatted}`, 'success', 8000);
         }
         
@@ -5046,7 +5597,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
     }
     
-    // Delete exchange
+    // Delete exchange and its associated image
     async function deleteExchange(exchangeId) {
       if (!currentUser) {
         alert('يجب تسجيل الدخول أولاً لحذف الإعلان');
@@ -5062,6 +5613,16 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         }
         
         const exchangeData = exchangeDoc.data();
+        
+        // حذف صورة الإعلان إذا كانت موجودة ولا تنتمي لقائمة الكتب الرسمية
+        if (exchangeData.bookImageUrl && !isImageInOfficialBooks(exchangeData.bookName, exchangeData.bookLevel, exchangeData.bookImageUrl)) {
+          try {
+            const imageRef = firebase.storage().refFromURL(exchangeData.bookImageUrl);
+            await imageRef.delete();
+          } catch (imageError) {
+            console.log('تعذر حذف الصورة أو أنها محذوفة بالفعل:', imageError);
+          }
+        }
         const isOwner = exchangeData.userId === currentUser.uid;
         
         // التحقق من الصلاحيات - يسمح فقط للمالك أو المدير
@@ -5383,6 +5944,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           })() : 'غير محدد';
           
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
+          if (result.level && result.book) {
+            const level = levels.find(l => l.name === result.level);
+            if (level) {
+              if (level.booksWithImages && level.booksWithImages[result.book]) {
+                bookImageUrl = level.booksWithImages[result.book];
+              } else if (level.bookImages && level.bookImages[result.book]) {
+                bookImageUrl = level.bookImages[result.book];
+              }
+            }
+          }
+          if (!bookImageUrl && result.bookImageUrl) {
+            bookImageUrl = result.bookImageUrl;
+          }
+          
+          const imageButton = bookImageUrl ? 
+            `<button class="view-image-btn" onclick="showImageModal('${bookImageUrl}', '${result.book}')" style="margin-left: 10px;">🖼️ عرض الصورة</button>` : '';
+          
           html += `
             <div class="search-result-item">
               <div class="search-result-book">${result.book}</div>
@@ -5390,6 +5970,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               <div style="margin: 8px 0; color: #4a5568;">
                 <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
                 <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+                ${imageButton}
               </div>
               <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
                 <span style="margin-left: 15px;">👤 ${result.userName}</span>
@@ -5416,6 +5997,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           })() : 'غير محدد';
           
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
+          if (result.level && result.book) {
+            const level = levels.find(l => l.name === result.level);
+            if (level) {
+              if (level.booksWithImages && level.booksWithImages[result.book]) {
+                bookImageUrl = level.booksWithImages[result.book];
+              } else if (level.bookImages && level.bookImages[result.book]) {
+                bookImageUrl = level.bookImages[result.book];
+              }
+            }
+          }
+          if (!bookImageUrl && result.bookImageUrl) {
+            bookImageUrl = result.bookImageUrl;
+          }
+          
+          const imageButton = bookImageUrl ? 
+            `<button class="view-image-btn" onclick="showImageModal('${bookImageUrl}', '${result.book}')" style="margin-left: 10px;">🖼️ عرض الصورة</button>` : '';
+          
           html += `
             <div class="search-result-item">
               <div class="search-result-book">${result.book}</div>
@@ -5423,6 +6023,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               <div style="margin: 8px 0; color: #4a5568;">
                 <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
                 <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+                ${imageButton}
               </div>
               <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
                 <span style="margin-left: 15px;">👤 ${result.userName}</span>
@@ -5511,6 +6112,26 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     async function switchExchangeTab(tabType) {
       currentExchangeType = tabType;
       currentExchangeLevel = null; // إعادة تعيين المستوى المختار
+      
+      // إظهار/إخفاء حاوي الإجراءات المجمعة
+      const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+      const adminBulkActionsContainer = document.getElementById('adminBulkActionsContainer');
+      
+      if (bulkActionsContainer) {
+        if (tabType === 'my') {
+          bulkActionsContainer.style.display = 'block';
+        } else {
+          bulkActionsContainer.style.display = 'none';
+        }
+      }
+      
+      if (adminBulkActionsContainer) {
+        if (tabType !== 'my' && isAdmin) {
+          adminBulkActionsContainer.style.display = 'block';
+        } else {
+          adminBulkActionsContainer.style.display = 'none';
+        }
+      }
       
       // تحديث التبويب النشط
       const tabs = document.querySelectorAll('.exchange-tab');
@@ -5818,28 +6439,40 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             exchangeDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           }
           
-          // البحث عن صورة الكتاب - أولاً من بيانات الإعلان، ثم من المستوى
-          let bookImageUrl = exchange.bookImageUrl || null;
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
           
-          // إذا لم توجد صورة في الإعلان، ابحث في بيانات المستوى
-          if (!bookImageUrl && exchange.bookLevel && exchange.bookName) {
+          // البحث في بيانات المستوى أولاً للحصول على أحدث صورة
+          if (exchange.bookLevel && exchange.bookName) {
             const level = levels.find(l => l.name === exchange.bookLevel);
-            if (level && level.bookImages && level.bookImages[exchange.bookName]) {
-              bookImageUrl = level.bookImages[exchange.bookName];
+            if (level) {
+              // البحث في booksWithImages أولاً (الصور المحدثة)
+              if (level.booksWithImages && level.booksWithImages[exchange.bookName]) {
+                bookImageUrl = level.booksWithImages[exchange.bookName];
+              }
+              // إذا لم توجد، ابحث في bookImages (الصور القديمة)
+              else if (level.bookImages && level.bookImages[exchange.bookName]) {
+                bookImageUrl = level.bookImages[exchange.bookName];
+              }
             }
           }
           
-          // إضافة تسجيل للتشخيص
-          console.log('Exchange:', exchange.bookName, 'Level:', exchange.bookLevel, 'ImageUrl:', bookImageUrl);
+          // إذا لم توجد صورة في المستوى، استخدم صورة الإعلان (إن وجدت)
+          if (!bookImageUrl && exchange.bookImageUrl) {
+            bookImageUrl = exchange.bookImageUrl;
+          }
+          
 
           const card = document.createElement('div');
           card.className = `exchange-card ${exchange.type}`;
 
           card.innerHTML = `
+            ${isOwner && currentExchangeType === 'my' ? `<div class="exchange-checkbox-container"><input type="checkbox" class="exchange-checkbox" data-exchange-id="${exchangeId}" onchange="updateSelectedCount()"></div>` : ''}
+            ${!isOwner && isAdmin && currentExchangeType !== 'my' ? `<div class="exchange-checkbox-container"><input type="checkbox" class="admin-exchange-checkbox" data-exchange-id="${exchangeId}" onchange="adminUpdateSelectedCount()"></div>` : ''}
             <div class="exchange-type ${exchange.type}">${exchange.type === 'offer' ? 'عرض' : 'طلب'}</div>
             <div class="exchange-book-title">
               ${exchange.bookName}
-              ${bookImageUrl ? `<button class="view-exchange-image-btn" onclick="event.stopPropagation(); showImageModal('${bookImageUrl}', '${exchange.bookName}')" title="عرض صورة الكتاب">👁️</button>` : ''}
+              ${bookImageUrl ? `<button class="view-exchange-image-btn" onclick="event.stopPropagation(); showImageModal('${bookImageUrl}', '${exchange.bookName}')" title="عرض صورة الكتاب">👁️</button>` : '<span style="color: #e53e3e; font-size: 0.8em; margin-right: 10px;">لا توجد صورة</span>'}
             </div>
             <div style="color: #4a5568; margin-bottom: 5px;">
               ${exchange.bookLevel ? `المستوى: <strong>${exchange.bookLevel}</strong>` : ''}
@@ -6759,6 +7392,10 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           senderInfo = `<div style="color: #667eea; font-size: 0.8em; margin-bottom: 2px;">من: ${message.fromUserName}</div>`;
         }
         
+        // Check if message has attachment
+        const attachmentIndicator = message.attachment ? 
+          `<div style="color: #4299e1; font-size: 0.8em; margin-bottom: 2px;">📎 ${message.attachment.name}</div>` : '';
+        
         item.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
             <span style="background: ${message.type === 'user_to_admin' ? '#e53e3e' : '#667eea'}; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7em;">${badgeText}</span>
@@ -6767,6 +7404,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           ${senderInfo}
           <div style="font-weight: 600; color: #2d3748; margin-bottom: 4px;">${message.title}</div>
           <div style="color: #4a5568; font-size: 0.9em; margin-bottom: 4px;">${messageContent.substring(0, 80)}${messageContent.length > 80 ? '...' : ''}</div>
+          ${attachmentIndicator}
           <div style="color: #718096; font-size: 0.8em;">${timeText}</div>
         `;
         

@@ -94,7 +94,7 @@
         <div class="sidebar-notifications-container" style="position: relative;">
           <button id="sidebar-messagesBtn" class="sidebar-btn" title="الرسائل الإدارية">
             <span>📧</span>
-            <span>الرسائل الإدارية</span>
+            <span>الرسائل الواردة</span>
             <span id="sidebar-messagesBadge" class="sidebar-badge" style="display: none;">0</span>
           </button>
           <!-- Messages Dropdown -->
@@ -119,7 +119,7 @@
         
         <button class="sidebar-btn" id="sidebar-adminMessageBtn" title="إرسال رسالة للمستخدمين" style="display: none;">
           <span>📢</span>
-          <span>رسالة للمستخدمين</span>
+          <span>إرسال رسالة للمستخدمين</span>
         </button>
         
         <button class="sidebar-btn" id="sidebar-contactAdminBtn" title="راسل الإدارة">
@@ -203,6 +203,40 @@
         <div class="exchange-tab" onclick="switchExchangeTab('offers')">كتب معروضة للبيع <span id="offersCount" class="exchange-count-badge">0</span></div>
         <div class="exchange-tab" onclick="switchExchangeTab('requests')">كتب مطلوبة للشراء <span id="requestsCount" class="exchange-count-badge">0</span></div>
         <div class="exchange-tab active" onclick="switchExchangeTab('my')">إعلاناتي</div>
+      </div>
+      
+      <!-- Bulk Actions for My Listings -->
+      <div id="bulkActionsContainer" class="bulk-actions-container" style="display: none; margin: 15px 0; padding: 15px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="selectAllExchanges" onchange="toggleSelectAll()" style="transform: scale(1.2);">
+            <span style="font-weight: 500;">تحديد الكل</span>
+          </label>
+          <button id="deleteSelectedBtn" onclick="deleteSelectedExchanges()" disabled style="background: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 0.9em; opacity: 0.5;">
+            🗑️ حذف المحدد
+          </button>
+          <button onclick="deleteAllMyExchanges()" style="background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
+            🗑️ مسح كل إعلاناتي
+          </button>
+          <span id="selectedCount" style="color: #4a5568; font-size: 0.9em;">0 محدد</span>
+        </div>
+      </div>
+      
+      <!-- Admin Bulk Actions for Other Users' Listings -->
+      <div id="adminBulkActionsContainer" class="bulk-actions-container" style="display: none; margin: 15px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border: 1px solid #f6ad55;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 5px; color: #c05621; font-weight: 600;">
+            👑 صلاحيات المدير
+          </div>
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="adminSelectAllExchanges" onchange="adminToggleSelectAll()" style="transform: scale(1.2);">
+            <span style="font-weight: 500;">تحديد الكل</span>
+          </label>
+          <button id="adminDeleteSelectedBtn" onclick="adminDeleteSelectedExchanges()" disabled style="background: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 0.9em; opacity: 0.5;">
+            🗑️ حذف المحدد (مدير)
+          </button>
+          <span id="adminSelectedCount" style="color: #4a5568; font-size: 0.9em;">0 محدد</span>
+        </div>
       </div>
       
       <!-- Search Interface -->
@@ -398,6 +432,22 @@
       <button class="notification-detail-close" onclick="closeNotificationDetail()">&times;</button>
       <div id="notificationDetailTitle" class="notification-detail-title"></div>
       <div id="notificationDetailMessage" class="notification-detail-message"></div>
+      <div id="messageAttachmentDisplay" style="display: none; margin: 20px 0; padding: 15px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="font-weight: 600; color: #2d3748; margin-bottom: 10px;">📎 مرفق:</div>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="messageAttachmentDisplayIcon">📎</span>
+            <div>
+              <div id="messageAttachmentDisplayName" style="font-weight: 600; color: #2d3748;"></div>
+              <div id="messageAttachmentDisplaySize" style="font-size: 0.8em; color: #718096;"></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="viewMessageAttachmentBtn" onclick="viewMessageAttachment()" style="background: #48bb78; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">👁️ مشاهدة</button>
+            <button id="downloadMessageAttachmentBtn" onclick="downloadMessageAttachment()" style="background: #4299e1; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">⬇️ تحميل</button>
+          </div>
+        </div>
+      </div>
       <div id="notificationDetailInfo" class="notification-detail-info" style="display: none;"></div>
     </div>
   </div>
@@ -415,6 +465,25 @@
         <div class="exchange-form-group">
           <label class="exchange-form-label" for="contactAdminMessage">محتوى الرسالة</label>
           <textarea class="exchange-form-input" id="contactAdminMessage" placeholder="أدخل محتوى الرسالة" rows="5" required style="resize: vertical; min-height: 120px;"></textarea>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label">إرفاق ملف (اختياري)</label>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="file" id="contactAdminAttachment" accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; background: white;">
+            <div style="font-size: 0.85em; color: #718096;">
+              الصور: حد أقصى 1 ميجابايت | المستندات: حد أقصى 2 ميجابايت
+            </div>
+            <div id="contactAttachmentPreview" style="display: none; margin-top: 10px; padding: 10px; background: #f7fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="contactAttachmentIcon">📎</span>
+                <div>
+                  <div id="contactAttachmentName" style="font-weight: 600; color: #2d3748;"></div>
+                  <div id="contactAttachmentSize" style="font-size: 0.8em; color: #718096;"></div>
+                </div>
+                <button type="button" onclick="removeContactAttachment()" style="margin-right: auto; background: #e53e3e; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer;">حذف</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="exchange-form-actions">
           <button type="button" class="exchange-form-cancel" onclick="closeContactAdminModal()">إلغاء</button>
@@ -437,6 +506,25 @@
         <div class="exchange-form-group">
           <label class="exchange-form-label" for="adminMessageContent">محتوى الرسالة</label>
           <textarea class="exchange-form-input" id="adminMessageContent" placeholder="أدخل محتوى الرسالة" rows="5" required style="resize: vertical; min-height: 120px;"></textarea>
+        </div>
+        <div class="exchange-form-group">
+          <label class="exchange-form-label">إرفاق ملف (اختياري)</label>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="file" id="adminMessageAttachment" accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; background: white;">
+            <div style="font-size: 0.85em; color: #718096;">
+              الصور: حد أقصى 1 ميجابايت | المستندات: حد أقصى 2 ميجابايت
+            </div>
+            <div id="attachmentPreview" style="display: none; margin-top: 10px; padding: 10px; background: #f7fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="attachmentIcon">📎</span>
+                <div>
+                  <div id="attachmentName" style="font-weight: 600; color: #2d3748;"></div>
+                  <div id="attachmentSize" style="font-size: 0.8em; color: #718096;"></div>
+                </div>
+                <button type="button" onclick="removeAttachment()" style="margin-right: auto; background: #e53e3e; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer;">حذف</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="exchange-form-group">
           <label class="exchange-form-label">نوع الإرسال</label>
@@ -487,6 +575,22 @@
       </div>
       <div id="adminMessageDisplayTitle" class="notification-detail-title" style="color: #667eea; text-align: center;"></div>
       <div id="adminMessageDisplayContent" class="notification-detail-message" style="text-align: center; font-size: 1.1em; line-height: 1.6;"></div>
+      <div id="adminMessageAttachmentDisplay" style="display: none; margin: 20px 0; padding: 15px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="font-weight: 600; color: #2d3748; margin-bottom: 10px;">📎 مرفق:</div>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="attachmentDisplayIcon">📎</span>
+            <div>
+              <div id="attachmentDisplayName" style="font-weight: 600; color: #2d3748;"></div>
+              <div id="attachmentDisplaySize" style="font-size: 0.8em; color: #718096;"></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="viewAttachmentBtn" onclick="viewMessageAttachment()" style="background: #48bb78; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">👁️ مشاهدة</button>
+            <button id="downloadAttachmentBtn" onclick="downloadMessageAttachment()" style="background: #4299e1; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">⬇️ تحميل</button>
+          </div>
+        </div>
+      </div>
       <div style="text-align: center; margin-top: 20px;">
         <button onclick="closeAdminMessageDisplay()" style="background: linear-gradient(135deg, #667eea 0%, #63b3ed 100%); color: white; border: none; padding: 10px 25px; border-radius: 8px; font-weight: 600; cursor: pointer;">خروج</button>
       </div>
