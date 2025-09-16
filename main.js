@@ -1035,6 +1035,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         
         const title = document.getElementById('contactAdminTitle').value.trim();
         const message = document.getElementById('contactAdminMessage').value.trim();
+        const attachmentFile = document.getElementById('contactAdminAttachment').files[0];
         
         if (!title || !message) {
           showTemporaryAlert('يرجى ملء جميع الحقول', 'error');
@@ -1042,8 +1043,10 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         }
         
         try {
-          await sendMessageToAdmin(title, message);
-          showTemporaryAlert('تم إرسال الرسالة للإدارة بنجاح', 'success');
+          showTemporaryAlert('جاري إرسال الرسالة...', 'info');
+          await sendMessageToAdmin(title, message, attachmentFile);
+          const attachmentText = attachmentFile ? ' مع مرفق' : '';
+          showTemporaryAlert(`تم إرسال الرسالة${attachmentText} للإدارة بنجاح`, 'success');
           closeContactAdminModal();
         } catch (error) {
           console.error('Error sending message to admin:', error);
@@ -1056,10 +1059,11 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     function closeContactAdminModal() {
       document.getElementById('contactAdminModal').style.display = 'none';
       document.getElementById('contactAdminForm').reset();
+      document.getElementById('contactAttachmentPreview').style.display = 'none';
     }
     
     // إرسال رسالة للإدارة
-    async function sendMessageToAdmin(title, message) {
+    async function sendMessageToAdmin(title, message, attachmentFile = null) {
       if (!currentUser) return;
       
       // الحصول على بيانات المستخدم من Firestore للحصول على رقم الهاتف
@@ -1073,9 +1077,26 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         console.warn('Could not fetch user phone:', error);
       }
       
+      let attachmentData = null;
+      
+      // Upload attachment if provided
+      if (attachmentFile) {
+        const attachmentUrl = await uploadMessageAttachment(attachmentFile);
+        if (attachmentUrl) {
+          attachmentData = {
+            name: attachmentFile.name,
+            size: attachmentFile.size,
+            type: attachmentFile.type,
+            url: attachmentUrl,
+            isImage: attachmentFile.type.startsWith('image/')
+          };
+        }
+      }
+      
       const userMessage = {
         title: title,
         message: message,
+        attachment: attachmentData,
         fromUserId: currentUser.uid,
         fromUserName: currentUser.name || currentUser.displayName || currentUser.email,
         fromUserEmail: currentUser.email,
@@ -3645,6 +3666,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       const content = document.getElementById('adminMessageContent').value.trim();
       const isUrgent = document.getElementById('adminMessageUrgent').checked;
       const messageType = document.querySelector('input[name="messageType"]:checked').value;
+      const attachmentFile = document.getElementById('adminMessageAttachment').files[0];
       
       if (!title || !content) {
         showTemporaryAlert('يرجى ملء جميع الحقول المطلوبة', 'error');
@@ -3663,6 +3685,24 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
       }
       
       try {
+        showTemporaryAlert('جاري إرسال الرسالة...', 'info');
+        
+        let attachmentData = null;
+        
+        // Upload attachment if provided
+        if (attachmentFile) {
+          const attachmentUrl = await uploadMessageAttachment(attachmentFile);
+          if (attachmentUrl) {
+            attachmentData = {
+              name: attachmentFile.name,
+              size: attachmentFile.size,
+              type: attachmentFile.type,
+              url: attachmentUrl,
+              isImage: attachmentFile.type.startsWith('image/')
+            };
+          }
+        }
+        
         // Create admin message document
         const messageData = {
           title: title,
@@ -3670,6 +3710,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           isUrgent: isUrgent,
           messageType: messageType,
           targetUsers: targetUsers, // null for all users, array of UIDs for specific users
+          attachment: attachmentData,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           createdBy: {
             uid: currentUser.uid,
@@ -3683,7 +3724,8 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         const messageId = messageDoc.id;
         
         const recipientText = messageType === 'all' ? 'جميع المستخدمين' : `${targetUsers.length} مستخدم محدد`;
-        showTemporaryAlert(`تم إرسال الرسالة بنجاح إلى ${recipientText}`, 'success');
+        const attachmentText = attachmentData ? ' مع مرفق' : '';
+        showTemporaryAlert(`تم إرسال الرسالة${attachmentText} بنجاح إلى ${recipientText}`, 'success');
         closeAdminMessageModal();
         
         // If urgent, show immediately to online users
@@ -3701,6 +3743,26 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     function showAdminMessageDisplay(message) {
       document.getElementById('adminMessageDisplayTitle').textContent = message.title;
       document.getElementById('adminMessageDisplayContent').textContent = message.content;
+      
+      // Handle attachment display
+      const attachmentDisplay = document.getElementById('adminMessageAttachmentDisplay');
+      if (message.attachment) {
+        document.getElementById('attachmentDisplayName').textContent = message.attachment.name;
+        document.getElementById('attachmentDisplaySize').textContent = formatFileSize(message.attachment.size);
+        document.getElementById('attachmentDisplayIcon').textContent = message.attachment.isImage ? '🖼️' : '📄';
+        
+        // Store attachment data for view/download functions
+        window.currentMessageAttachment = message.attachment;
+        
+        // Show/hide view button based on file type
+        const viewBtn = document.getElementById('viewAttachmentBtn');
+        viewBtn.style.display = message.attachment.isImage ? 'inline-block' : 'none';
+        
+        attachmentDisplay.style.display = 'block';
+      } else {
+        attachmentDisplay.style.display = 'none';
+      }
+      
       document.getElementById('adminMessageDisplayModal').style.display = 'flex';
       
       // Mark message as read
@@ -4145,6 +4207,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
         </div>
         ${additionalInfo}
       `;
+      
+      // Handle attachment display in message detail
+      const attachmentDisplay = document.getElementById('messageAttachmentDisplay');
+      if (message.attachment) {
+        document.getElementById('messageAttachmentDisplayName').textContent = message.attachment.name;
+        document.getElementById('messageAttachmentDisplaySize').textContent = formatFileSize(message.attachment.size);
+        document.getElementById('messageAttachmentDisplayIcon').textContent = message.attachment.isImage ? '🖼️' : '📄';
+        
+        // Store attachment data for view/download functions
+        window.currentMessageAttachment = message.attachment;
+        
+        // Show/hide view button based on file type
+        const viewBtn = document.getElementById('viewMessageAttachmentBtn');
+        viewBtn.style.display = message.attachment.isImage ? 'inline-block' : 'none';
+        
+        attachmentDisplay.style.display = 'block';
+      } else {
+        attachmentDisplay.style.display = 'none';
+      }
       
       // Mark message as read if it's a user-to-admin message
       if (isAdmin && message.type === 'user_to_admin' && !message.read) {
@@ -4730,6 +4811,114 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
     window.updateExchangeImageUrls = updateExchangeImageUrls;
     window.isImageInOfficialBooks = isImageInOfficialBooks;
     window.cleanupExpiredExchanges = cleanupExpiredExchanges;
+    
+    // Message attachment functions
+    async function uploadMessageAttachment(file) {
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        return null;
+      }
+      
+      const fileName = `messages/${Date.now()}_${file.name}`;
+      const storageRef = firebase.storage().ref().child(fileName);
+      const snapshot = await storageRef.put(file);
+      return await snapshot.ref.getDownloadURL();
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 بايت';
+      const k = 1024;
+      const sizes = ['بايت', 'كيلوبايت', 'ميجابايت'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function viewMessageAttachment() {
+      if (window.currentMessageAttachment && window.currentMessageAttachment.isImage) {
+        showImageModal(window.currentMessageAttachment.url, window.currentMessageAttachment.name);
+      }
+    }
+    
+    function downloadMessageAttachment() {
+      if (window.currentMessageAttachment) {
+        try {
+          showTemporaryAlert('جاري تحميل الملف...', 'info');
+          
+          // Create download link directly with Firebase Storage URL
+          const link = document.createElement('a');
+          link.href = window.currentMessageAttachment.url;
+          link.download = window.currentMessageAttachment.name;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          
+          // Trigger download
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          showTemporaryAlert('تم بدء تحميل الملف', 'success');
+        } catch (error) {
+          console.error('Error downloading file:', error);
+          showTemporaryAlert('حدث خطأ في تحميل الملف', 'error');
+        }
+      }
+    }
+    
+    function removeAttachment() {
+      document.getElementById('adminMessageAttachment').value = '';
+      document.getElementById('attachmentPreview').style.display = 'none';
+    }
+    
+    // Attachment preview handler
+    document.getElementById('adminMessageAttachment').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        this.value = '';
+        return;
+      }
+      
+      document.getElementById('attachmentName').textContent = file.name;
+      document.getElementById('attachmentSize').textContent = formatFileSize(file.size);
+      document.getElementById('attachmentIcon').textContent = file.type.startsWith('image/') ? '🖼️' : '📄';
+      document.getElementById('attachmentPreview').style.display = 'block';
+    };
+    
+    // Contact admin attachment preview handler
+    document.getElementById('contactAdminAttachment').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const maxSize = file.type.startsWith('image/') ? 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const limit = file.type.startsWith('image/') ? '1 ميجابايت' : '2 ميجابايت';
+        showTemporaryAlert(`حجم الملف يتجاوز الحد المسموح (${limit})`, 'error');
+        this.value = '';
+        return;
+      }
+      
+      document.getElementById('contactAttachmentName').textContent = file.name;
+      document.getElementById('contactAttachmentSize').textContent = formatFileSize(file.size);
+      document.getElementById('contactAttachmentIcon').textContent = file.type.startsWith('image/') ? '🖼️' : '📄';
+      document.getElementById('contactAttachmentPreview').style.display = 'block';
+    };
+    
+    function removeContactAttachment() {
+      document.getElementById('contactAdminAttachment').value = '';
+      document.getElementById('contactAttachmentPreview').style.display = 'none';
+    }
+    
+    window.uploadMessageAttachment = uploadMessageAttachment;
+    window.viewMessageAttachment = viewMessageAttachment;
+    window.downloadMessageAttachment = downloadMessageAttachment;
+    window.removeAttachment = removeAttachment;
+    window.removeContactAttachment = removeContactAttachment;
     window.showExchangeOption = showExchangeOption;
     window.loadExistingBooks = loadExistingBooks;
 
@@ -7164,6 +7353,10 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           senderInfo = `<div style="color: #667eea; font-size: 0.8em; margin-bottom: 2px;">من: ${message.fromUserName}</div>`;
         }
         
+        // Check if message has attachment
+        const attachmentIndicator = message.attachment ? 
+          `<div style="color: #4299e1; font-size: 0.8em; margin-bottom: 2px;">📎 ${message.attachment.name}</div>` : '';
+        
         item.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
             <span style="background: ${message.type === 'user_to_admin' ? '#e53e3e' : '#667eea'}; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7em;">${badgeText}</span>
@@ -7172,6 +7365,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           ${senderInfo}
           <div style="font-weight: 600; color: #2d3748; margin-bottom: 4px;">${message.title}</div>
           <div style="color: #4a5568; font-size: 0.9em; margin-bottom: 4px;">${messageContent.substring(0, 80)}${messageContent.length > 80 ? '...' : ''}</div>
+          ${attachmentIndicator}
           <div style="color: #718096; font-size: 0.8em;">${timeText}</div>
         `;
         
