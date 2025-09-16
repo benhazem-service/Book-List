@@ -4669,7 +4669,6 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
           .get();
         
         if (expiredExchanges.empty) {
-          console.log('لا توجد إعلانات منتهية الصلاحية للحذف');
           return;
         }
         
@@ -5945,6 +5944,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           })() : 'غير محدد';
           
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
+          if (result.level && result.book) {
+            const level = levels.find(l => l.name === result.level);
+            if (level) {
+              if (level.booksWithImages && level.booksWithImages[result.book]) {
+                bookImageUrl = level.booksWithImages[result.book];
+              } else if (level.bookImages && level.bookImages[result.book]) {
+                bookImageUrl = level.bookImages[result.book];
+              }
+            }
+          }
+          if (!bookImageUrl && result.bookImageUrl) {
+            bookImageUrl = result.bookImageUrl;
+          }
+          
+          const imageButton = bookImageUrl ? 
+            `<button class="view-image-btn" onclick="showImageModal('${bookImageUrl}', '${result.book}')" style="margin-left: 10px;">🖼️ عرض الصورة</button>` : '';
+          
           html += `
             <div class="search-result-item">
               <div class="search-result-book">${result.book}</div>
@@ -5952,6 +5970,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               <div style="margin: 8px 0; color: #4a5568;">
                 <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
                 <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+                ${imageButton}
               </div>
               <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
                 <span style="margin-left: 15px;">👤 ${result.userName}</span>
@@ -5978,6 +5997,25 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
             return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
           })() : 'غير محدد';
           
+          // البحث عن صورة الكتاب - أولاً من بيانات المستوى المحدثة، ثم من الإعلان
+          let bookImageUrl = null;
+          if (result.level && result.book) {
+            const level = levels.find(l => l.name === result.level);
+            if (level) {
+              if (level.booksWithImages && level.booksWithImages[result.book]) {
+                bookImageUrl = level.booksWithImages[result.book];
+              } else if (level.bookImages && level.bookImages[result.book]) {
+                bookImageUrl = level.bookImages[result.book];
+              }
+            }
+          }
+          if (!bookImageUrl && result.bookImageUrl) {
+            bookImageUrl = result.bookImageUrl;
+          }
+          
+          const imageButton = bookImageUrl ? 
+            `<button class="view-image-btn" onclick="showImageModal('${bookImageUrl}', '${result.book}')" style="margin-left: 10px;">🖼️ عرض الصورة</button>` : '';
+          
           html += `
             <div class="search-result-item">
               <div class="search-result-book">${result.book}</div>
@@ -5985,6 +6023,7 @@ const appDataDocRef = db.collection('appConfig').doc('data'); // Using a single 
               <div style="margin: 8px 0; color: #4a5568;">
                 <span style="margin-left: 15px;">${typeIcon} ${typeText}</span>
                 <span style="margin-left: 15px;">📊 العدد: ${result.count}</span>
+                ${imageButton}
               </div>
               <div style="margin: 8px 0; color: #667eea; font-size: 0.9em;">
                 <span style="margin-left: 15px;">👤 ${result.userName}</span>
